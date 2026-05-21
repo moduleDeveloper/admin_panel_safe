@@ -20,6 +20,44 @@ app.use(cors({
 app.options('*', cors());
 app.use(express.json({ limit: '20mb' }));
 
+app.get('/', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  return res.json({
+    ok: true,
+    service: 'video-backend',
+    health: `${baseUrl}/health`,
+    routes: {
+      video_base: `${baseUrl}/api/video`,
+      social_base: `${baseUrl}/api/social`,
+      video: [
+        '/api/video/generate-script',
+        '/api/video/save-script',
+        '/api/video/approve-script',
+        '/api/video/generate-voiceover',
+        '/api/video/generate-scene-plan',
+        '/api/video/save-scene-plan',
+        '/api/video/generate-scene-visual',
+        '/api/video/approve-scene-image',
+        '/api/video/approve-scene-motion',
+        '/api/video/generate-scene-motion',
+        '/api/video/save-scene-motion',
+        '/api/video/update-project-status',
+        '/api/video/render-final-video',
+        '/api/video/project',
+        '/api/video/project-assets',
+        '/api/video/final-videos',
+        '/api/video/asset-library',
+        '/api/video/final-video/:assetId',
+        '/api/video/download-final-video',
+      ],
+      social: [
+        '/api/social/accounts/:trustId',
+        '/api/social/post',
+      ],
+    },
+  });
+});
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'video-backend' });
 });

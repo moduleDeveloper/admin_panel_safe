@@ -406,7 +406,16 @@ export async function generateImageWithFal({ prompt }) {
     }
 
     if (statusData?.status === 'COMPLETED') {
-      const imageUrl = pickFirstImageUrl(statusData);
+      let imageUrl = pickFirstImageUrl(statusData);
+
+      // Some FAL image queues mark COMPLETED on status endpoint but place media URL on response_url.
+      if (!imageUrl && statusData?.response_url) {
+        const resultResponse = await fetch(String(statusData.response_url), { headers: getAuthHeaders() });
+        const resultData = await resultResponse.json().catch(() => ({}));
+        if (resultResponse.ok) {
+          imageUrl = pickFirstImageUrl(resultData) || pickFirstImageUrl({ response: resultData });
+        }
+      }
 
       if (!imageUrl) {
         const sample = JSON.stringify(statusData || {}).slice(0, 1200);
