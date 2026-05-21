@@ -3,6 +3,8 @@ import { config } from '../config/config.js';
 const FAL_BASE = 'https://queue.fal.run';
 const FAL_DIRECT_BASE = 'https://fal.run';
 const DEFAULT_FAL_HTTP_TIMEOUT_MS = 30000;
+const IMAGE_STATUS_POLL_INTERVAL_MS = 900;
+const IMAGE_RESULT_RESOLVE_WINDOW_MS = 10000;
 
 function getRemainingMs(deadlineAt, fallbackMs = DEFAULT_FAL_HTTP_TIMEOUT_MS) {
   const fallback = Math.max(1000, Number(fallbackMs || DEFAULT_FAL_HTTP_TIMEOUT_MS));
@@ -94,7 +96,7 @@ async function fetchImageResultPayload(statusData, timeoutMs = DEFAULT_FAL_HTTP_
 
   const startedAt = Date.now();
   for (const url of candidateUrls) {
-    for (let attempt = 1; attempt <= 6; attempt += 1) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
       const remaining = Math.max(1000, timeoutMs - (Date.now() - startedAt));
       if (remaining <= 1000 && attempt > 1) break;
       const controller = new AbortController();
@@ -106,13 +108,13 @@ async function fetchImageResultPayload(statusData, timeoutMs = DEFAULT_FAL_HTTP_
         });
         const data = await response.json().catch(() => ({}));
         if (response.ok) return data;
-        if ((response.status === 404 || response.status === 422) && attempt < 6) {
-          await sleep(1200 * attempt);
+        if ((response.status === 404 || response.status === 422) && attempt < 3) {
+          await sleep(350 * attempt);
           continue;
         }
       } catch (error) {
-        if (error?.name !== 'AbortError' && attempt < 6) {
-          await sleep(800 * attempt);
+        if (error?.name !== 'AbortError' && attempt < 3) {
+          await sleep(250 * attempt);
           continue;
         }
       } finally {
@@ -447,16 +449,9 @@ export async function generateImageWithFal({ prompt }) {
     if (statusData?.status === 'COMPLETED') {
       let imageUrl = pickFirstImageUrl(statusData);
       if (!imageUrl) {
-        let resultPayload = await fetchImageResultPayload(statusData, timeoutMs);
+        const resolveWindowMs = Math.min(IMAGE_RESULT_RESOLVE_WINDOW_MS, Math.max(2000, Math.floor(timeoutMs / 3)));
+        const resultPayload = await fetchImageResultPayload(statusData, resolveWindowMs);
         imageUrl = pickFirstImageUrl(resultPayload) || pickFirstImageUrl({ response: resultPayload });
-        if (!imageUrl) {
-          for (let attempt = 1; attempt <= 3; attempt += 1) {
-            await sleep(1200 * attempt);
-            resultPayload = await fetchImageResultPayload(statusData, timeoutMs);
-            imageUrl = pickFirstImageUrl(resultPayload) || pickFirstImageUrl({ response: resultPayload });
-            if (imageUrl) break;
-          }
-        }
       }
 
       if (!imageUrl) {
@@ -475,7 +470,7 @@ export async function generateImageWithFal({ prompt }) {
       throw new Error(statusData?.error || 'Fal image generation failed.');
     }
 
-    await sleep(1500);
+    await sleep(IMAGE_STATUS_POLL_INTERVAL_MS);
   }
 
   throw new Error(`Fal request timed out after ${timeoutMs}ms.`);
