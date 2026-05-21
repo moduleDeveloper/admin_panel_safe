@@ -6,7 +6,14 @@ import socialRoutes from './routes/socialRoutes.js';
 
 const app = express();
 
-app.use(cors({ origin: config.corsOrigin }));
+app.use(cors({
+  origin(origin, callback) {
+    // Allow non-browser requests (curl/server-to-server) with no Origin header.
+    if (!origin) return callback(null, true);
+    if (config.corsOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+}));
 app.use(express.json({ limit: '20mb' }));
 
 app.get('/health', (_req, res) => {

@@ -33,7 +33,10 @@ function required(key) {
 
 export const config = {
   port: Number(process.env.PORT || 8080),
-  corsOrigin: String(process.env.CORS_ORIGIN || 'http://localhost:5173'),
+  corsOrigins: String(process.env.CORS_ORIGIN || 'http://localhost:5173,https://test-admin-panel-eight.vercel.app')
+    .split(',')
+    .map((value) => String(value || '').trim())
+    .filter(Boolean),
   supabaseUrl: required('SUPABASE_URL'),
   supabaseServiceRoleKey: required('SUPABASE_SERVICE_ROLE_KEY'),
   supabaseVideoBucket: String(process.env.SUPABASE_VIDEO_BUCKET || 'video-creation-assets'),
