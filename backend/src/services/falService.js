@@ -185,6 +185,8 @@ function pickFirstImageUrl(payload) {
     const text = String(url || '').trim();
     if (!/^https?:\/\//i.test(text)) return false;
     const lower = text.toLowerCase();
+    if (lower.includes('queue.fal.run') && lower.includes('/requests/')) return false;
+    if (lower.includes('/status')) return false;
     return (
       lower.includes('.png')
       || lower.includes('.jpg')
@@ -228,6 +230,27 @@ function pickFirstImageUrl(payload) {
     ? payload.data.find((entry) => isUsableImageUrl(entry?.url))
     : null;
   if (fromDataRoot?.url) return String(fromDataRoot.url).trim();
+
+  // Last-resort recursive scan for any usable image URL shape.
+  const visited = new Set();
+  const queue = [payload];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || typeof current !== 'object') continue;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    if (Array.isArray(current)) {
+      current.forEach((item) => queue.push(item));
+      continue;
+    }
+    for (const value of Object.values(current)) {
+      if (typeof value === 'string') {
+        if (isUsableImageUrl(value)) return value.trim();
+      } else if (value && typeof value === 'object') {
+        queue.push(value);
+      }
+    }
+  }
 
   return '';
 }
@@ -386,7 +409,8 @@ export async function generateImageWithFal({ prompt }) {
       const imageUrl = pickFirstImageUrl(statusData);
 
       if (!imageUrl) {
-        throw new Error('Fal completed but image URL not found.');
+        const sample = JSON.stringify(statusData || {}).slice(0, 1200);
+        throw new Error(`Fal completed but image URL not found. Sample: ${sample}`);
       }
 
       return {
