@@ -85,6 +85,45 @@ async function fetchResultPayload(statusData, deadlineAt = 0, totalTimeoutMs = D
   return statusData;
 }
 
+async function fetchImageResultPayload(statusData, timeoutMs = DEFAULT_FAL_HTTP_TIMEOUT_MS) {
+  const responseUrl = statusData?.response_url;
+  const statusUrl = statusData?.status_url;
+  const requestUrl = statusUrl ? String(statusUrl).replace(/\/status(\?.*)?$/, '') : '';
+  const candidateUrls = [responseUrl, requestUrl].filter(Boolean);
+  if (candidateUrls.length === 0) return statusData;
+
+  const startedAt = Date.now();
+  for (const url of candidateUrls) {
+    for (let attempt = 1; attempt <= 6; attempt += 1) {
+      const remaining = Math.max(1000, timeoutMs - (Date.now() - startedAt));
+      if (remaining <= 1000 && attempt > 1) break;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), remaining);
+      try {
+        const response = await fetch(String(url), {
+          headers: getAuthHeaders(),
+          signal: controller.signal,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) return data;
+        if ((response.status === 404 || response.status === 422) && attempt < 6) {
+          await sleep(1200 * attempt);
+          continue;
+        }
+      } catch (error) {
+        if (error?.name !== 'AbortError' && attempt < 6) {
+          await sleep(800 * attempt);
+          continue;
+        }
+      } finally {
+        clearTimeout(timer);
+      }
+      break;
+    }
+  }
+  return statusData;
+}
+
 function pickFirstVideoUrl(payload) {
   const isUsableVideoUrl = (url) => {
     const text = String(url || '').trim();
@@ -407,13 +446,16 @@ export async function generateImageWithFal({ prompt }) {
 
     if (statusData?.status === 'COMPLETED') {
       let imageUrl = pickFirstImageUrl(statusData);
-
-      // Some FAL image queues mark COMPLETED on status endpoint but place media URL on response_url.
-      if (!imageUrl && statusData?.response_url) {
-        const resultResponse = await fetch(String(statusData.response_url), { headers: getAuthHeaders() });
-        const resultData = await resultResponse.json().catch(() => ({}));
-        if (resultResponse.ok) {
-          imageUrl = pickFirstImageUrl(resultData) || pickFirstImageUrl({ response: resultData });
+      if (!imageUrl) {
+        let resultPayload = await fetchImageResultPayload(statusData, timeoutMs);
+        imageUrl = pickFirstImageUrl(resultPayload) || pickFirstImageUrl({ response: resultPayload });
+        if (!imageUrl) {
+          for (let attempt = 1; attempt <= 3; attempt += 1) {
+            await sleep(1200 * attempt);
+            resultPayload = await fetchImageResultPayload(statusData, timeoutMs);
+            imageUrl = pickFirstImageUrl(resultPayload) || pickFirstImageUrl({ response: resultPayload });
+            if (imageUrl) break;
+          }
         }
       }
 
