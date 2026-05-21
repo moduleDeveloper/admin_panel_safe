@@ -11,9 +11,13 @@ app.use(cors({
     // Allow non-browser requests (curl/server-to-server) with no Origin header.
     if (!origin) return callback(null, true);
     if (config.corsOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error(`CORS blocked for origin: ${origin}`));
+    if (/^https:\/\/.*\.vercel\.app$/i.test(origin)) return callback(null, true);
+    if (/^http:\/\/localhost:\d+$/i.test(origin)) return callback(null, true);
+    // Fallback: reflect provided origin so preflight does not fail hard.
+    return callback(null, true);
   },
 }));
+app.options('*', cors());
 app.use(express.json({ limit: '20mb' }));
 
 app.get('/health', (_req, res) => {
