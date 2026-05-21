@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local secrets
+backend/.env
+
+# Local secrets
+backend/.env

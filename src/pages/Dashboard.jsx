@@ -219,6 +219,20 @@ const MODULE_CARDS = [
     ),
   },
   {
+    id: 'card-create-video',
+    label: 'Create a Video',
+    description: 'Create and manage social media videos',
+    route: '/video/create',
+    gradient: 'linear-gradient(135deg, #0284C7 0%, #4338CA 100%)',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <rect x="3.5" y="5" width="11.5" height="14" rx="2.2" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.16)" />
+        <path d="M9.4 10.2l3.4 1.8-3.4 1.8v-3.6Z" fill="white" />
+        <path d="M15.5 9.4l4.6-2.4v10l-4.6-2.4V9.4Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round" fill="rgba(255,255,255,0.16)" />
+      </svg>
+    ),
+  },
+  {
     id: 'card-noticeboard',
     label: 'Noticeboard',
     description: 'View notices and open individual updates',
@@ -410,7 +424,7 @@ const MODULE_CARDS = [
 ];
 
 const APP_DESIGN_CARD_IDS = new Set(['card-logo', 'card-theme', 'card-feature-control', 'card-sub-feature-control', 'card-features-2-o']);
-const COMPANY_DETAILS_CARD_IDS = new Set(['card-trust', 'card-social-media-account-details']);
+const COMPANY_DETAILS_CARD_IDS = new Set(['card-trust', 'card-social-media-account-details', 'card-create-video']);
 const DASHBOARD_CARD_IDS = new Set();
 const HOME_PAGE_CARD_IDS = new Set(['card-sponsor', 'card-gallery', 'card-marquee']);
 const QUICK_ACTION_CARD_IDS = new Set(['card-profile', 'card-executive-body', 'card-noticeboard', 'card-events', 'card-facilities', 'card-donations', 'card-members', 'card-achievements']);
@@ -441,6 +455,20 @@ const MENU_MODULE_CARDS = [
         <circle cx="18" cy="6" r="2.2" stroke="white" strokeWidth="1.8" />
         <circle cx="18" cy="18" r="2.2" stroke="white" strokeWidth="1.8" />
         <path d="M8 11l7.6-4.1M8 13l7.6 4.1" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: 'menu-card-product',
+    label: 'Product',
+    description: 'Open product creation wizard',
+    route: '/social-media/product',
+    gradient: 'linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <path d="M3 7.5L12 3l9 4.5-9 4.5L3 7.5Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M3 7.5V16.5L12 21l9-4.5V7.5" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M12 12v9" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     ),
   },

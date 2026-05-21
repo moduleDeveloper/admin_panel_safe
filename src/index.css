@@ -56,6 +56,14 @@ body {
   overflow-x: hidden;
 }
 
+/* Prevent visible text-caret on headings/titles across pages */
+h1, h2, h3, h4, h5, h6,
+[role='heading'],
+.ph-title,
+.ph-subtitle {
+  caret-color: transparent;
+}
+
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(108,99,255,0.2); border-radius: 99px; }
