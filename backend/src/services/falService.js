@@ -180,6 +180,58 @@ function pickFirstVideoUrl(payload) {
   return '';
 }
 
+function pickFirstImageUrl(payload) {
+  const isUsableImageUrl = (url) => {
+    const text = String(url || '').trim();
+    if (!/^https?:\/\//i.test(text)) return false;
+    const lower = text.toLowerCase();
+    return (
+      lower.includes('.png')
+      || lower.includes('.jpg')
+      || lower.includes('.jpeg')
+      || lower.includes('.webp')
+      || lower.includes('/image')
+      || lower.includes('image/')
+      || lower.includes('fal.media/files/')
+      || lower.includes('files.fal.media/')
+      || lower.includes('storage.googleapis.com/')
+    );
+  };
+
+  const candidates = [
+    payload?.response?.images?.[0]?.url,
+    payload?.response?.image?.url,
+    payload?.response?.image_url,
+    payload?.response?.output?.images?.[0]?.url,
+    payload?.response?.output?.image?.url,
+    payload?.response?.output?.image_url,
+    payload?.images?.[0]?.url,
+    payload?.image?.url,
+    payload?.image_url,
+    payload?.output?.images?.[0]?.url,
+    payload?.output?.image?.url,
+    payload?.output?.image_url,
+    payload?.result?.images?.[0]?.url,
+    payload?.result?.image?.url,
+    payload?.result?.image_url,
+    payload?.url,
+  ];
+
+  const direct = candidates.find((item) => isUsableImageUrl(item));
+  if (direct) return String(direct).trim();
+
+  const fromDataResponse = Array.isArray(payload?.response?.data)
+    ? payload.response.data.find((entry) => isUsableImageUrl(entry?.url))
+    : null;
+  if (fromDataResponse?.url) return String(fromDataResponse.url).trim();
+  const fromDataRoot = Array.isArray(payload?.data)
+    ? payload.data.find((entry) => isUsableImageUrl(entry?.url))
+    : null;
+  if (fromDataRoot?.url) return String(fromDataRoot.url).trim();
+
+  return '';
+}
+
 async function resolveFalVideoUrl({
   modelPath,
   statusData,
@@ -331,10 +383,7 @@ export async function generateImageWithFal({ prompt }) {
     }
 
     if (statusData?.status === 'COMPLETED') {
-      const imageUrl =
-        statusData?.response?.images?.[0]?.url ||
-        statusData?.images?.[0]?.url ||
-        '';
+      const imageUrl = pickFirstImageUrl(statusData);
 
       if (!imageUrl) {
         throw new Error('Fal completed but image URL not found.');

@@ -441,6 +441,7 @@ export default function CreateVideoPage() {
   const motionPreviewImageTimerRef = useRef(null);
   const projectRehydrateTriedRef = useRef('');
   const draftStatusSyncRef = useRef('');
+  const voiceoverAutoRequestedRef = useRef('');
 
   const startSmoothProgress = (key, setter) => {
     if (progressTimersRef.current[key]) window.clearInterval(progressTimersRef.current[key]);
@@ -1516,9 +1517,18 @@ export default function CreateVideoPage() {
     if (!projectId || !trust?.id) return;
     if (voiceoverUrl) return;
     if (isVoiceoverGenerating) return;
+    const autoKey = `${projectId}:${trust.id}:${currentStep}`;
+    if (voiceoverAutoRequestedRef.current === autoKey) return;
+    voiceoverAutoRequestedRef.current = autoKey;
     handleGenerateVoiceover();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, projectId, trust?.id, voiceoverUrl, isVoiceoverGenerating, isEditMode]);
+
+  useEffect(() => {
+    if (currentStep !== 3 || voiceoverUrl) {
+      voiceoverAutoRequestedRef.current = '';
+    }
+  }, [currentStep, voiceoverUrl]);
 
   const goBack = () => {
     setCurrentStep((prev) => {
