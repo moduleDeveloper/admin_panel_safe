@@ -24,7 +24,11 @@ dist-ssr
 *.sw?
 
 # Local secrets
-backend/.env
 
 # Local secrets
+# Local secrets
+.env
+.env.local
+.env.production
+
 backend/.env
