@@ -165,6 +165,7 @@ async function fetchAllRegMembers(supabaseClient, trustId) {
 }
 
 export default function MemberImport({ onComplete }) {
+  console.log('MemberImport rendered');
   const [screen, setScreen] = useState('upload');
   const [trusts, setTrusts] = useState([]);
   const [selectedTrustId, setSelectedTrustId] = useState('');
