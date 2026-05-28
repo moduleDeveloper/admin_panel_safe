@@ -585,6 +585,7 @@ export default function MemberImport({ onComplete }) {
   };
 
   const handleParseAndContinue = async () => {
+    console.log('Member import started', { trustId: selectedTrust?.id, trustName: selectedTrust?.name, fileName: file?.name });
     if (!selectedTrust || !file) return;
     setIsBusy(true);
     setUploadError('');
@@ -1718,3 +1719,4 @@ export default function MemberImport({ onComplete }) {
     </div>
   );
 }
+
