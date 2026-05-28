@@ -165,6 +165,7 @@ async function fetchAllRegMembers(supabaseClient, trustId) {
 }
 
 export default function MemberImport({ onComplete }) {
+  console.log('MemberImport rendered');
   const [screen, setScreen] = useState('upload');
   const [trusts, setTrusts] = useState([]);
   const [selectedTrustId, setSelectedTrustId] = useState('');
@@ -584,6 +585,7 @@ export default function MemberImport({ onComplete }) {
   };
 
   const handleParseAndContinue = async () => {
+    console.log('Member import started', { trustId: selectedTrust?.id, trustName: selectedTrust?.name, fileName: file?.name });
     if (!selectedTrust || !file) return;
     setIsBusy(true);
     setUploadError('');
@@ -1717,3 +1719,4 @@ export default function MemberImport({ onComplete }) {
     </div>
   );
 }
+
