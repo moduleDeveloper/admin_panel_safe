@@ -2,8 +2,8 @@ import { supabase } from '../lib/supabase';
 import { cachedQuery, invalidateCache } from './requestCache';
 import { getAllowedImageFormatsMessage, prepareImageFileForUpload } from '../utils/imageUpload';
 
-const REGISTERED_TABLE_CANDIDATES = ['registered_members', 'reg_members'];
-const MEMBER_TABLE_CANDIDATES = ['members', 'Members'];
+const REGISTERED_TABLE_CANDIDATES = ['reg_members', 'registered_members'];
+const MEMBER_TABLE_CANDIDATES = ['Members', 'members'];
 const MEMBER_PROFILE_TABLE_CANDIDATES = ['member_profiles'];
 const FAMILY_MEMBERS_TABLE_CANDIDATES = ['family_members'];
 const OTHER_MEMBERSHIPS_TABLE_CANDIDATES = ['other_memberships'];

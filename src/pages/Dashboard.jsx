@@ -130,6 +130,20 @@ const MODULE_CARDS = [
     ),
   },
   {
+    id: 'card-bulk-members-upload',
+    label: 'Bulk Members Upload',
+    description: 'Upload members in bulk from file',
+    route: '/members/bulk-upload',
+    gradient: 'linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <path d="M12 16V5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M8.8 8.2L12 5l3.2 3.2" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <rect x="4" y="14.5" width="16" height="5.5" rx="2" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.16)" />
+      </svg>
+    ),
+  },
+  {
     id: 'card-gallery',
     label: 'Gallery',
     description: 'Upload & manage photo albums',
@@ -427,7 +441,7 @@ const APP_DESIGN_CARD_IDS = new Set(['card-logo', 'card-theme', 'card-feature-co
 const COMPANY_DETAILS_CARD_IDS = new Set(['card-trust', 'card-social-media-account-details', 'card-create-video']);
 const DASHBOARD_CARD_IDS = new Set();
 const HOME_PAGE_CARD_IDS = new Set(['card-sponsor', 'card-gallery', 'card-marquee']);
-const QUICK_ACTION_CARD_IDS = new Set(['card-profile', 'card-executive-body', 'card-noticeboard', 'card-events', 'card-facilities', 'card-donations', 'card-members', 'card-achievements']);
+const QUICK_ACTION_CARD_IDS = new Set(['card-profile', 'card-executive-body', 'card-noticeboard', 'card-events', 'card-facilities', 'card-donations', 'card-members', 'card-bulk-members-upload', 'card-achievements']);
 const MENU_MODULE_CARDS = [
   {
     id: 'card-notifications',
