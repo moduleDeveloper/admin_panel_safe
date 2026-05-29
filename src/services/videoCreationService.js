@@ -1,4 +1,9 @@
-const API_BASE = String(import.meta.env.VITE_VIDEO_BACKEND_URL || 'http://localhost:8080').replace(/\/$/, '');
+function normalizeApiBase(rawBase) {
+  const base = String(rawBase || 'http://localhost:8080').trim().replace(/\/+$/, '');
+  return base.replace(/\/api$/i, '');
+}
+
+const API_BASE = normalizeApiBase(import.meta.env.VITE_VIDEO_BACKEND_URL);
 
 async function postJson(path, payload) {
   const response = await fetch(`${API_BASE}${path}`, {

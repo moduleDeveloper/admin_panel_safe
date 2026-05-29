@@ -1,8 +1,11 @@
+import WebSocket from 'ws';
 import express from 'express';
 import cors from 'cors';
 import { config } from './config/config.js';
 import videoRoutes from './routes/videoRoutes.js';
 import socialRoutes from './routes/socialRoutes.js';
+
+globalThis.WebSocket = WebSocket;
 
 const app = express();
 

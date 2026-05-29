@@ -807,7 +807,12 @@ export default function CreateVideoPage() {
       };
     });
   }, [approvedImageUrls, previewAudioDurationSec, estimatedDuration]);
-  const apiBase = String(import.meta.env.VITE_VIDEO_BACKEND_URL || 'http://localhost:8080').replace(/\/$/, '');
+  const apiBase = useMemo(() => {
+    const base = String(import.meta.env.VITE_VIDEO_BACKEND_URL || 'http://localhost:8080')
+      .trim()
+      .replace(/\/+$/, '');
+    return base.replace(/\/api$/i, '');
+  }, []);
   const finalVideoDownloadUrl = useMemo(() => {
     if (!projectId || !trust?.id) return '';
     const url = new URL(`${apiBase}/api/video/download-final-video`);
