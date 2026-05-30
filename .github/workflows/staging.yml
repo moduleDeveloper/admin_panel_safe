@@ -35,4 +35,4 @@ jobs:
             npm run build
             cd backend
             npm install
-            pm2 restart adminpanel-staging-backend
+            pm2 restart adminpanel-staging

@@ -35,6 +35,7 @@ const ProductPage = lazy(() => import('./pages/ProductPage'));
 const CreateVideoPage = lazy(() => import('./pages/CreateVideoPage'));
 const ShareAppPage = lazy(() => import('./pages/ShareAppPage'));
 const AchievementsPage = lazy(() => import('./pages/AchievementsPage'));
+const MemberImportPage = lazy(() => import('./components/MemberImport'));
 
 function App() {
   return (
@@ -54,6 +55,7 @@ function App() {
           <Route path="/sponsor/edit_sponsor" element={<SponsorsPage />} />
           <Route path="/sponsorts/edit_sponsor" element={<SponsorsPage />} />
           <Route path="/members"      element={<MembersPage />} />
+          <Route path="/members/bulk-upload" element={<MemberImportPage />} />
           <Route path="/member"       element={<MembersPage />} />
           <Route path="/member/create_member" element={<MembersPage />} />
           <Route path="/member-profile" element={<MemberProfilePage />} />
