@@ -4,6 +4,39 @@ import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 
 const MEMBER_IMPORT_STATE_KEY = 'memberImportState';
+const PERSIST_ROW_LIMIT = 200;
+
+function pickRowForPersistence(row) {
+  if (!row) return row;
+  return {
+    rowNumber: row.rowNumber,
+    name: row.name,
+    rawPhone: row.rawPhone,
+    cleanPhone: row.cleanPhone,
+    email: row.email,
+    role: row.role,
+    membershipNumber: row.membershipNumber,
+    addressHome: row.addressHome,
+    companyName: row.companyName,
+    addressOffice: row.addressOffice,
+    residentLandline: row.residentLandline,
+    officeLandline: row.officeLandline,
+    contact: row.contact,
+    errors: row.errors,
+    editName: row.editName,
+    editPhone: row.editPhone,
+    editRole: row.editRole,
+    editMembershipNumber: row.editMembershipNumber,
+    phonePreview: row.phonePreview,
+    bucket: row.bucket,
+    members_id: row.members_id
+  };
+}
+
+function clampRowsForPersistence(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.slice(0, PERSIST_ROW_LIMIT).map(pickRowForPersistence);
+}
 
 function normalizePhone(raw) {
   if (!raw) return null;
@@ -252,34 +285,52 @@ export default function MemberImport({ onComplete }) {
   }, []);
 
   useEffect(() => {
-    const stateToSave = {
+    const fullState = {
       currentScreen: screen,
       selectedTrustId,
-      validRowsDraft,
-      invalidRows,
-      newRows,
-      crossTrustRows,
-      manualReviewRows,
-      ambiguousRows,
-      skippedRows: skippedRegisteredRows,
+      validRowsDraft: clampRowsForPersistence(validRowsDraft),
+      invalidRows: clampRowsForPersistence(invalidRows),
+      newRows: clampRowsForPersistence(newRows),
+      crossTrustRows: clampRowsForPersistence(crossTrustRows),
+      manualReviewRows: clampRowsForPersistence(manualReviewRows),
+      ambiguousRows: clampRowsForPersistence(ambiguousRows),
+      skippedRows: clampRowsForPersistence(skippedRegisteredRows),
       excludedRows: [],
-      fileDupRows,
-      errorRows,
+      fileDupRows: clampRowsForPersistence(fileDupRows),
+      errorRows: clampRowsForPersistence(errorRows),
       insertLog,
       decisions,
       ambiguousDecisions,
       parsingDone,
       showFixPanel,
       showSkippedAccordion,
-      allRows,
-      validRows,
+      allRows: clampRowsForPersistence(allRows),
+      validRows: clampRowsForPersistence(validRows),
       summary,
-      dismissedRows,
-      parseErrorRows,
+      dismissedRows: clampRowsForPersistence(dismissedRows),
+      parseErrorRows: Array.isArray(parseErrorRows) ? parseErrorRows.slice(0, PERSIST_ROW_LIMIT) : [],
       activeFilter,
       savedAt: Date.now()
     };
-    sessionStorage.setItem(MEMBER_IMPORT_STATE_KEY, JSON.stringify(stateToSave));
+    try {
+      sessionStorage.setItem(MEMBER_IMPORT_STATE_KEY, JSON.stringify(fullState));
+    } catch (e) {
+      try {
+        const fallbackState = {
+          currentScreen: screen,
+          selectedTrustId,
+          parsingDone,
+          showFixPanel,
+          showSkippedAccordion,
+          summary,
+          activeFilter,
+          savedAt: Date.now()
+        };
+        sessionStorage.setItem(MEMBER_IMPORT_STATE_KEY, JSON.stringify(fallbackState));
+      } catch {
+        sessionStorage.removeItem(MEMBER_IMPORT_STATE_KEY);
+      }
+    }
   }, [
     screen,
     selectedTrustId,
