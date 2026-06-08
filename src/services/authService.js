@@ -116,12 +116,16 @@ export async function updateTrustDetails(trustId, updates = {}) {
 
 /**
  * Insert a new superuser into the superuser table.
+ * Stores only the last 10 digits of the mobile number (without country code).
  * Returns { data: superuser_row | null, error }
  */
 export async function insertSuperuser(mobile, name) {
+  // Extract only the last 10 digits
+  const cleanMobile = digitsOnly(mobile).slice(-10);
+  
   const { data, error } = await supabase
     .from('superuser')
-    .insert([{ mobile, name, is_active: true }])
+    .insert([{ mobile: cleanMobile, name, is_active: true }])
     .select('id, name, mobile, is_active')
     .single();
 
