@@ -16,6 +16,7 @@ import './UserManagementPage.css';
 const EMPTY_FORM = {
   id: null,
   name: '',
+  email: '',
   mobile_no: '',
   secret_code: '',
 };
@@ -75,6 +76,7 @@ export default function UserManagementPage() {
     setForm({
       id: user.id,
       name: user.name || '',
+      email: user.email || '',
       mobile_no: user.mobile_no || '',
       secret_code:
         user.secret_code === null || user.secret_code === undefined
@@ -382,6 +384,16 @@ export default function UserManagementPage() {
                         value={form.name}
                         onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
                         placeholder="Enter full name"
+                      />
+                    </label>
+
+                    <label>
+                      <span>Email</span>
+                      <input
+                        type="email"
+                        value={form.email}
+                        onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+                        placeholder="Enter email address"
                       />
                     </label>
 

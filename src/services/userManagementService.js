@@ -5,6 +5,7 @@ const USER_COLUMNS = `
   id,
   trust_id,
   name,
+  email,
   mobile_no,
   secret_code,
   created_at,
@@ -94,6 +95,7 @@ export async function createPanelUser(trustId, payload = {}) {
   const insertPayload = {
     trust_id: trustId,
     name,
+    email: String(payload.email || '').trim() || null,
     mobile_no: String(payload.mobile_no || '').trim() || null,
     secret_code: secretCode,
   };
@@ -119,6 +121,7 @@ export async function updatePanelUser(userId, payload = {}) {
 
   const updatePayload = {
     name,
+    email: String(payload.email || '').trim() || null,
     mobile_no: String(payload.mobile_no || '').trim() || null,
     secret_code: secretCode,
     updated_at: new Date().toISOString(),
