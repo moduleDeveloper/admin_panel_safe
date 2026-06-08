@@ -9,19 +9,27 @@ export async function createTrust(superuserId, { name, legalName, iconUrl, remar
   if (!superuserId) return { data: null, error: { message: 'No superuser ID provided' } };
   if (!name?.trim()) return { data: null, error: { message: 'Trust name is required' } };
 
+  const trustData = {
+    name: name.trim(),
+    legal_name: legalName?.trim() || null,
+    icon_url: iconUrl?.trim() || null,
+    remark: remark?.trim() || null,
+    version: 1,
+  };
+
+  // Only add superuser_id if it's provided and is a valid UUID
+  if (superuserId && typeof superuserId === 'string' && superuserId.length > 0) {
+    trustData.superuser_id = superuserId;
+  }
+
+  // Only add template_id if it's provided and is a valid UUID
+  if (templateId && typeof templateId === 'string' && templateId.length > 0) {
+    trustData.template_id = templateId;
+  }
+
   const { data, error } = await supabase
     .from('Trust')
-    .insert([
-      {
-        name: name.trim(),
-        legal_name: legalName?.trim() || null,
-        icon_url: iconUrl?.trim() || null,
-        remark: remark?.trim() || null,
-        template_id: templateId,
-        superuser_id: superuserId,
-        theme_overrides: {},
-      },
-    ])
+    .insert([trustData])
     .select()
     .single();
 

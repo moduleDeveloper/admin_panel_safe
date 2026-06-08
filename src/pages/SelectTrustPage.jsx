@@ -29,9 +29,13 @@ export default function SelectTrustPage() {
     userName: userNameFromState       = 'User',
     trusts: trustsFromState           = [],
     phone      = '',
+    countryCode = '+91',
     fullMobile = '',
     isNewUser  = false,
   } = location.state || {};
+
+  // Ensure fullMobile is always constructed with country code
+  const constructedFullMobile = fullMobile || (phone && countryCode ? `${countryCode}${phone}` : '');
 
   const [superuserId,   setSuperuserId]   = useState(superuserIdFromState);
   const [userName,      setUserName]      = useState(userNameFromState);
@@ -66,7 +70,7 @@ export default function SelectTrustPage() {
     e.preventDefault();
     if (!newName.trim()) { setNameError('Please enter your name.'); return; }
     setSaving(true); setNameError('');
-    const { data, error } = await insertSuperuser(fullMobile || phone, newName.trim());
+    const { data, error } = await insertSuperuser(constructedFullMobile, newName.trim());
     if (error) { setNameError('Could not register. Try again.'); setSaving(false); return; }
     setSuperuserId(data.id); setUserName(data.name); setRegistered(true); setSaving(false);
     await new Promise(r => setTimeout(r, 500));
@@ -97,7 +101,7 @@ export default function SelectTrustPage() {
       await recordAdminSessionAction({
         superuserId,
         name: userName || storedName || null,
-        mobile: fullMobile || phone || storedMobile || null,
+        mobile: constructedFullMobile || storedMobile || null,
         actionType: 'logout',
         metadata: { source: 'select_trust_signout' },
       });
