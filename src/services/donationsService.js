@@ -120,57 +120,84 @@ async function compressImageToJpegRange(file, { minBytes = TARGET_MIN_IMAGE_BYTE
     let bestBlob = null;
     let bestDistance = Number.POSITIVE_INFINITY;
     const targetMid = (minBytes + maxBytes) / 2;
-    let low = 0.01;
-    let high = 0.95;
-    let attempts = 0;
-    const MAX_ATTEMPTS = 10;
+    const tryQualityRange = async (sourceCanvas) => {
+      let low = 0.01;
+      let high = 0.95;
+      let attempts = 0;
+      const MAX_ATTEMPTS = 12;
 
-    while (attempts < MAX_ATTEMPTS && high - low > 0.005) {
-      const quality = Number((((low + high) / 2)).toFixed(3));
-      const blob = await canvasToBlob(canvas, 'image/jpeg', quality);
-      attempts += 1;
-      if (!blob) continue;
+      while (attempts < MAX_ATTEMPTS && high - low > 0.005) {
+        const quality = Number((((low + high) / 2)).toFixed(3));
+        const blob = await canvasToBlob(sourceCanvas, 'image/jpeg', quality);
+        attempts += 1;
+        if (!blob) continue;
 
-      if (blob.size <= maxBytes && blob.size >= minBytes) {
-        bestBlob = blob;
-        break;
+        if (blob.size <= maxBytes && blob.size >= minBytes) {
+          return blob;
+        }
+
+        if (blob.size <= maxBytes) {
+          const distance = Math.abs(blob.size - targetMid);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestBlob = blob;
+          }
+          low = quality;
+        } else {
+          high = quality;
+        }
       }
 
-      if (blob.size <= maxBytes) {
-        const distance = Math.abs(blob.size - targetMid);
+      const finalBlob = await canvasToBlob(sourceCanvas, 'image/jpeg', 0.01);
+      if (finalBlob && finalBlob.size <= maxBytes) {
+        const distance = Math.abs(finalBlob.size - targetMid);
         if (distance < bestDistance) {
           bestDistance = distance;
-          bestBlob = blob;
+          bestBlob = finalBlob;
         }
-        low = quality;
-      } else {
-        high = quality;
+        return finalBlob;
       }
-    }
 
-    if (!bestBlob) {
-      const finalBlob = await canvasToBlob(canvas, 'image/jpeg', 0.01);
-      if (finalBlob && finalBlob.size <= maxBytes) {
-        bestBlob = finalBlob;
+      return null;
+    };
+
+    let currentCanvas = canvas;
+    let currentWidth = width;
+    let currentHeight = height;
+    let finalBlob = await tryQualityRange(currentCanvas);
+
+    if (!finalBlob || finalBlob.size > maxBytes) {
+      const resizeSteps = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4];
+      for (const scale of resizeSteps) {
+        currentWidth = Math.max(64, Math.round(width * scale));
+        currentHeight = Math.max(64, Math.round(height * scale));
+        canvas.width = currentWidth;
+        canvas.height = currentHeight;
+        context.clearRect(0, 0, currentWidth, currentHeight);
+        context.drawImage(image, 0, 0, currentWidth, currentHeight);
+        currentCanvas = canvas;
+        finalBlob = await tryQualityRange(currentCanvas);
+        if (finalBlob && finalBlob.size <= maxBytes) break;
       }
     }
 
     if (typeof image?.close === 'function') image.close();
-    if (!bestBlob || bestBlob.size > maxBytes) {
+    const resolvedBlob = finalBlob && finalBlob.size <= maxBytes ? finalBlob : bestBlob;
+    if (!resolvedBlob || resolvedBlob.size > maxBytes) {
       return {
         file: null,
         warning: '',
-        error: { message: `Image could not reach ${Math.floor(maxBytes / 1024)}KB using quality-only compression.` },
+        error: { message: `Image could not be compressed to ${Math.floor(maxBytes / 1024)}KB.` },
       };
     }
 
-    const compressedFile = new File([bestBlob], `${sanitizeFileName(file?.name)}.jpg`, {
+    const compressedFile = new File([resolvedBlob], `${sanitizeFileName(file?.name)}.jpg`, {
       type: 'image/jpeg',
       lastModified: Date.now(),
     });
     return {
       file: compressedFile,
-      warning: `"${file?.name || 'image'}" auto-compressed to ${Math.max(1, Math.round(bestBlob.size / 1024))}KB (target 20-25KB).`,
+      warning: `"${file?.name || 'image'}" auto-compressed to ${Math.max(1, Math.round(resolvedBlob.size / 1024))}KB (target 20-25KB).`,
       error: null,
     };
   } catch (error) {
@@ -189,7 +216,14 @@ async function uploadSingleDonationAttachment(file, { trustId = null } = {}) {
     maxBytes: MAX_IMAGE_BYTES,
   });
   if (compressed.error || !compressed.file) {
-    return { data: null, error: { message: compressed.error?.message || 'Unable to process selected image.' } };
+    return {
+      data: null,
+      error: {
+        message:
+          compressed.error?.message ||
+          `Image could not be compressed to ${Math.floor(MAX_IMAGE_BYTES / 1024)}KB. Please try a smaller image.`,
+      },
+    };
   }
   const uploadFile = compressed.file;
 

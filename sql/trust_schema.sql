@@ -16,7 +16,12 @@ create table public."Trust" (
   remark1 text null,
   remark2 text null,
   remark3 text null,
+  version numeric not null default 1,
+  secret_code numeric null,
+  developer_mobile text null,
+  developer_secret_code text null,
   constraint hospitals_pkey primary key (id),
   constraint "Trust_superuser_id_fkey" foreign key (superuser_id) references superuser (id) on delete set null,
-  constraint "Trust_template_id_fkey" foreign key (template_id) references app_templates (id) on delete set null
+  constraint "Trust_template_id_fkey" foreign key (template_id) references app_templates (id) on delete set null,
+  constraint trust_version_positive check ((version >= (1)::numeric))
 ) tablespace pg_default;

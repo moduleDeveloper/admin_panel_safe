@@ -6,6 +6,7 @@ const REGISTERED_TABLE_CANDIDATES = ['reg_members', 'registered_members'];
 const MEMBER_TABLE_CANDIDATES = ['Members', 'members'];
 const MEMBER_PROFILE_TABLE_CANDIDATES = ['member_profiles'];
 const FAMILY_MEMBERS_TABLE_CANDIDATES = ['family_members'];
+const MEMBER_NOMINATIONS_TABLE_CANDIDATES = ['member_nominations'];
 const OTHER_MEMBERSHIPS_TABLE_CANDIDATES = ['other_memberships'];
 const MEMBER_ROLES_TABLE = 'member_roles';
 const PROFILE_PHOTO_BUCKET = 'profile_photo';
@@ -20,6 +21,7 @@ let resolvedMemberTables = null;
 
 function invalidateMemberCaches() {
   invalidateCache('members:');
+  invalidateCache('nominations:');
 }
 
 function pickFirst(row = {}, keys = []) {
@@ -244,6 +246,20 @@ function normalizeOtherMembershipRow(row = {}) {
   };
 }
 
+function normalizeMemberNominationRow(row = {}) {
+  return {
+    id: pickFirst(row, ['id']),
+    trust_id: pickFirst(row, ['trust_id']),
+    member_id: pickFirst(row, ['member_id']),
+    reg_id: pickFirst(row, ['reg_id']),
+    family_member_id: pickFirst(row, ['family_member_id']),
+    nominee_type: pickFirst(row, ['nominee_type']) || 'primary',
+    status: pickFirst(row, ['status']) || 'pending',
+    created_at: pickFirst(row, ['created_at']) || null,
+    updated_at: pickFirst(row, ['updated_at']) || null,
+  };
+}
+
 function buildOtherMembershipPayload(payload = {}, trustId = null) {
   return {
     member_id: payload.member_id?.trim() || null,
@@ -340,6 +356,121 @@ export async function fetchFamilyMembersByMemberId(memberId) {
 
     return { data: (data || []).map(normalizeFamilyMemberRow), error: null };
   }, 12000);
+}
+
+function buildMemberNominationPayload(payload = {}, trustId = null) {
+  return {
+    trust_id: trustId || payload.trust_id || null,
+    member_id: payload.member_id || null,
+    reg_id: payload.reg_id || null,
+    family_member_id: payload.family_member_id || null,
+    nominee_type: String(payload.nominee_type || 'primary').trim().toLowerCase() === 'secondary' ? 'secondary' : 'primary',
+    status: ['active', 'pending', 'revoked'].includes(String(payload.status || 'pending').trim().toLowerCase())
+      ? String(payload.status).trim().toLowerCase()
+      : 'pending',
+  };
+}
+
+async function fetchMemberNominationLookups(rows = []) {
+  const memberIds = [...new Set(rows.map((row) => String(row.member_id || '')).filter(Boolean))];
+  const regIds = [...new Set(rows.map((row) => String(row.reg_id || '')).filter(Boolean))];
+  const familyIds = [...new Set(rows.map((row) => String(row.family_member_id || '')).filter(Boolean))];
+
+  const [memberRes, regRes, familyRes] = await Promise.all([
+    memberIds.length
+      ? supabase.from('Members').select('*').in('members_id', memberIds)
+      : Promise.resolve({ data: [], error: null }),
+    regIds.length
+      ? supabase.from('reg_members').select('*').in('id', regIds)
+      : Promise.resolve({ data: [], error: null }),
+    familyIds.length
+      ? supabase.from('family_members').select('*').in('id', familyIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (memberRes.error) return { error: memberRes.error };
+  if (regRes.error) return { error: regRes.error };
+  if (familyRes.error) return { error: familyRes.error };
+
+  const memberMap = new Map((memberRes.data || []).map((row) => [String(row.members_id), row]));
+  const regMap = new Map((regRes.data || []).map((row) => [String(row.id), row]));
+  const familyMap = new Map((familyRes.data || []).map((row) => [String(row.id), row]));
+
+  return {
+    error: null,
+    memberMap,
+    regMap,
+    familyMap,
+  };
+}
+
+export async function fetchMemberNominationsByTrust(trustId) {
+  if (!trustId) return { data: [], error: null };
+  return cachedQuery(`nominations:trust:${trustId}`, async () => {
+    const table = await resolveTable(MEMBER_NOMINATIONS_TABLE_CANDIDATES, 'member_nominations');
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .eq('trust_id', trustId)
+      .order('created_at', { ascending: false, nullsFirst: false });
+
+    if (error) return { data: [], error };
+    const rows = (data || []).map(normalizeMemberNominationRow);
+    const lookups = await fetchMemberNominationLookups(rows);
+    if (lookups.error) return { data: [], error: lookups.error };
+
+    const enriched = rows.map((row) => ({
+      ...row,
+      member: lookups.memberMap.get(String(row.member_id)) || null,
+      registration: lookups.regMap.get(String(row.reg_id)) || null,
+      family_member: lookups.familyMap.get(String(row.family_member_id)) || null,
+    }));
+
+    return { data: enriched, error: null };
+  }, 12000);
+}
+
+export async function createMemberNomination(payload = {}, trustId = null) {
+  if (!payload.member_id) return { data: null, error: { message: 'Registered member is required.' } };
+  if (!payload.reg_id) return { data: null, error: { message: 'Registration record is required.' } };
+  if (!payload.family_member_id) return { data: null, error: { message: 'Family member is required.' } };
+
+  const table = await resolveTable(MEMBER_NOMINATIONS_TABLE_CANDIDATES, 'member_nominations');
+  const insertPayload = buildMemberNominationPayload(payload, trustId);
+  const { data, error } = await supabase
+    .from(table)
+    .insert([insertPayload])
+    .select('*')
+    .single();
+
+  if (error) return { data: null, error };
+  invalidateMemberCaches();
+  return { data: normalizeMemberNominationRow(data), error: null };
+}
+
+export async function updateMemberNomination(nominationId, payload = {}, trustId = null) {
+  if (!nominationId) return { data: null, error: { message: 'Nomination id is required.' } };
+
+  const table = await resolveTable(MEMBER_NOMINATIONS_TABLE_CANDIDATES, 'member_nominations');
+  const updatePayload = buildMemberNominationPayload(payload, trustId);
+  const { data, error } = await supabase
+    .from(table)
+    .update(updatePayload)
+    .eq('id', nominationId)
+    .select('*')
+    .single();
+
+  if (error) return { data: null, error };
+  invalidateMemberCaches();
+  return { data: normalizeMemberNominationRow(data), error: null };
+}
+
+export async function deleteMemberNomination(nominationId) {
+  if (!nominationId) return { error: { message: 'Nomination id is required.' } };
+  const table = await resolveTable(MEMBER_NOMINATIONS_TABLE_CANDIDATES, 'member_nominations');
+  const { error } = await supabase.from(table).delete().eq('id', nominationId);
+  if (!error) invalidateMemberCaches();
+  return { error };
 }
 
 function extensionFromImageFile(file) {

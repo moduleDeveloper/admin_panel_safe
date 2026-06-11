@@ -19,7 +19,7 @@ export async function createTrust(superuserId, { name, legalName, iconUrl, remar
         remark: remark?.trim() || null,
         template_id: templateId,
         superuser_id: superuserId,
-        theme_overrides: {},
+        version: 1,
       },
     ])
     .select()
