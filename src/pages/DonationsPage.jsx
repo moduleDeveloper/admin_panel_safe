@@ -14,7 +14,7 @@ import { isImageFileLike } from '../utils/imageUpload';
 import './NoticeboardPage.css';
 
 const DONATION_STATUS_OPTIONS = ['active', 'inactive'];
-const DONATION_AMOUNT_TYPE_OPTIONS = ['fixed', 'variable', 'monthly'];
+const DONATION_AMOUNT_TYPE_OPTIONS = ['fixed', 'variable', 'monthly', 'yearly'];
 const DONATION_TYPE_OPTIONS = ['general', 'vip'];
 const PARTIAL_MONEY_RE = /^\d*(?:\.\d{0,2})?$/;
 const MONEY_RE = /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/;
