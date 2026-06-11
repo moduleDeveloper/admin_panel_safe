@@ -35,6 +35,8 @@ const ProductPage = lazy(() => import('./pages/ProductPage'));
 const CreateVideoPage = lazy(() => import('./pages/CreateVideoPage'));
 const ShareAppPage = lazy(() => import('./pages/ShareAppPage'));
 const AchievementsPage = lazy(() => import('./pages/AchievementsPage'));
+const LinkedTrustsPage = lazy(() => import('./pages/LinkedTrustsPage'));
+const NominationsPage = lazy(() => import('./pages/NominationsPage'));
 const MemberImportPage = lazy(() => import('./components/MemberImport'));
 
 function App() {
@@ -100,6 +102,8 @@ function App() {
           <Route path="/achievements" element={<AchievementsPage />} />
           <Route path="/achievements/create_achievement" element={<AchievementsPage />} />
           <Route path="/achievements/edit_details" element={<AchievementsPage />} />
+          <Route path="/linked-trusts" element={<LinkedTrustsPage />} />
+          <Route path="/nominations" element={<NominationsPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

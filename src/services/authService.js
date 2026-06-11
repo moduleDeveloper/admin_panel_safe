@@ -63,6 +63,210 @@ export async function findSuperuserByMobile(phone, countryCode = '+91') {
   return { data: fallback || data[0], error: null, candidates };
 }
 
+export async function findLinkedTrustsByRegisteredMobile(phone, countryCode = '+91') {
+  const candidates = buildMobileCandidates(phone, countryCode)
+    .map((value) => digitsOnly(value))
+    .filter(Boolean);
+
+  const numericCandidates = [...new Set(candidates
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value)))];
+
+  if (!numericCandidates.length) {
+    return {
+      data: { member: null, registrations: [], trusts: [] },
+      error: null,
+      candidates,
+    };
+  }
+
+  const { data: registrations, error: registrationError } = await supabase
+    .from('reg_members')
+    .select('id, trust_id, members_id, Mobile, Name, role, joined_date, is_active, "Membership number"')
+    .in('Mobile', numericCandidates);
+
+  if (registrationError) {
+    return {
+      data: { member: null, registrations: [], trusts: [] },
+      error: registrationError,
+      candidates,
+    };
+  }
+
+  const rows = registrations || [];
+  if (!rows.length) {
+    return {
+      data: { member: null, registrations: [], trusts: [] },
+      error: null,
+      candidates,
+    };
+  }
+
+  const local = digitsOnly(phone).slice(-10);
+  const matchingRegistrations = rows.filter((row) => digitsOnly(row?.Mobile).endsWith(local));
+  const normalizedRegistrations = matchingRegistrations.length ? matchingRegistrations : rows;
+
+  const memberIds = [...new Set(normalizedRegistrations.map((row) => row.members_id).filter(Boolean))];
+  const trustIds = [...new Set(normalizedRegistrations.map((row) => row.trust_id).filter(Boolean))];
+
+  let memberRows = [];
+  if (memberIds.length) {
+    const { data, error } = await supabase
+      .from('Members')
+      .select('*')
+      .in('members_id', memberIds);
+    if (error) {
+      return {
+        data: { member: null, registrations: [], trusts: [] },
+        error,
+        candidates,
+      };
+    }
+    memberRows = data || [];
+  }
+
+  let trustRows = [];
+  if (trustIds.length) {
+    const { data, error } = await supabase
+      .from('Trust')
+      .select('*')
+      .in('id', trustIds)
+      .order('name', { ascending: true });
+    if (error) {
+      return {
+        data: { member: null, registrations: [], trusts: [] },
+        error,
+        candidates,
+      };
+    }
+    trustRows = data || [];
+  }
+
+  const memberMap = new Map(memberRows.map((row) => [String(row.members_id), row]));
+  const trustMap = new Map(trustRows.map((row) => [String(row.id), row]));
+
+  const enrichedRegistrations = normalizedRegistrations.map((row) => ({
+    ...row,
+    member: memberMap.get(String(row.members_id)) || null,
+    trust: trustMap.get(String(row.trust_id)) || null,
+  }));
+
+  const primaryMember =
+    enrichedRegistrations.find((row) => row.member)?.member ||
+    (memberRows[0] || null);
+
+  const uniqueTrusts = [];
+  const seenTrustIds = new Set();
+  for (const row of enrichedRegistrations) {
+    const trust = row.trust;
+    if (!trust?.id || seenTrustIds.has(String(trust.id))) continue;
+    seenTrustIds.add(String(trust.id));
+    uniqueTrusts.push({
+      ...trust,
+      registration: {
+        id: row.id,
+        role: row.role || '',
+        joined_date: row.joined_date || '',
+        is_active: row.is_active !== false,
+        membership_number: row['Membership number'] || '',
+        registered_name: row.Name || row.member?.Name || '',
+        registered_mobile: row.Mobile || row.member?.Mobile || null,
+      },
+      member: row.member || null,
+    });
+  }
+
+  return {
+    data: {
+      member: primaryMember,
+      registrations: enrichedRegistrations,
+      trusts: uniqueTrusts,
+    },
+    error: null,
+    candidates,
+  };
+}
+
+export async function findMembersByMobile(phone, countryCode = '+91') {
+  const candidates = buildMobileCandidates(phone, countryCode)
+    .map((value) => digitsOnly(value))
+    .filter(Boolean);
+
+  const numericCandidates = [...new Set(candidates
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value)))];
+
+  if (!numericCandidates.length) {
+    return { data: [], error: null, candidates };
+  }
+
+  const { data, error } = await supabase
+    .from('Members')
+    .select('*')
+    .in('Mobile', numericCandidates);
+
+  if (error) return { data: [], error, candidates };
+
+  const local = digitsOnly(phone).slice(-10);
+  const rows = (data || []).filter((row) => digitsOnly(row?.Mobile).endsWith(local));
+  const normalized = rows.length ? rows : (data || []);
+
+  return {
+    data: normalized,
+    error: null,
+    candidates,
+  };
+}
+
+export async function findTrustsByMemberId(memberId) {
+  if (!memberId) return { data: [], error: null };
+
+  const { data: registrations, error: registrationError } = await supabase
+    .from('reg_members')
+    .select('id, trust_id, members_id, Mobile, Name, role, joined_date, is_active, "Membership number"')
+    .eq('members_id', memberId);
+
+  if (registrationError) return { data: [], error: registrationError };
+  const rows = registrations || [];
+  if (!rows.length) return { data: [], error: null };
+
+  const trustIds = [...new Set(rows.map((row) => row.trust_id).filter(Boolean))];
+  if (!trustIds.length) return { data: [], error: null };
+
+  const { data: trustRows, error: trustError } = await supabase
+    .from('Trust')
+    .select('*')
+    .in('id', trustIds)
+    .order('name', { ascending: true });
+
+  if (trustError) return { data: [], error: trustError };
+
+  const trustMap = new Map((trustRows || []).map((row) => [String(row.id), row]));
+  return {
+    data: rows
+      .map((row) => trustMap.get(String(row.trust_id)))
+      .filter(Boolean)
+      .map((trust) => {
+        const reg = rows.find((row) => String(row.trust_id) === String(trust.id)) || null;
+        return {
+          ...trust,
+          registration: reg
+            ? {
+                id: reg.id,
+                role: reg.role || '',
+                joined_date: reg.joined_date || '',
+                is_active: reg.is_active !== false,
+                membership_number: reg['Membership number'] || '',
+                registered_name: reg.Name || '',
+                registered_mobile: reg.Mobile || null,
+              }
+            : null,
+        };
+      }),
+    error: null,
+  };
+}
+
 /**
  * Fetch all trusts linked to a superuser.
  * Returns { data: Trust[] | null, error }

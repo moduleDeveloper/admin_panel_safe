@@ -435,6 +435,34 @@ const MODULE_CARDS = [
       </svg>
     ),
   },
+  {
+    id: 'card-nominations',
+    label: 'Nominations',
+    description: 'Manage nomination workflows and review entries',
+    route: '/nominations',
+    gradient: 'linear-gradient(135deg, #4F46E5 0%, #0EA5E9 100%)',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <rect x="4" y="3.5" width="16" height="17" rx="2.6" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.16)" />
+        <path d="M8 8.5h8M8 12h8M8 15.5h5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M15.5 5.5v4" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: 'card-linked-trusts',
+    label: 'Linked Trusts',
+    description: 'Search a mobile number and view all connected trusts',
+    route: '/linked-trusts',
+    gradient: 'linear-gradient(135deg, #4338CA 0%, #0EA5E9 100%)',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <rect x="3.5" y="4" width="7.5" height="16" rx="2" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.14)" />
+        <rect x="13" y="4" width="7.5" height="16" rx="2" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.14)" />
+        <path d="M11 8h2M11 12h2M11 16h2" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ];
 
 const APP_DESIGN_CARD_IDS = new Set(['card-logo', 'card-theme', 'card-feature-control', 'card-sub-feature-control', 'card-features-2-o']);
@@ -442,6 +470,7 @@ const COMPANY_DETAILS_CARD_IDS = new Set(['card-trust', 'card-social-media-accou
 const DASHBOARD_CARD_IDS = new Set();
 const HOME_PAGE_CARD_IDS = new Set(['card-sponsor', 'card-gallery', 'card-marquee']);
 const QUICK_ACTION_CARD_IDS = new Set(['card-profile', 'card-executive-body', 'card-noticeboard', 'card-events', 'card-facilities', 'card-donations', 'card-members', 'card-bulk-members-upload', 'card-achievements']);
+const EXTRA_CARD_IDS = new Set(['card-linked-trusts', 'card-nominations']);
 const MENU_MODULE_CARDS = [
   {
     id: 'card-notifications',
@@ -535,6 +564,7 @@ const NAV_SECTION_TITLES = {
   'app-design': 'App Design',
   'home-page': 'Home Page',
   'quick-actions': 'Quick Actions',
+  extra: 'Extra',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -840,6 +870,9 @@ export default function Dashboard() {
     }
     if (currentSidebarNavKey === 'quick-actions') {
       return MODULE_CARDS.filter((card) => QUICK_ACTION_CARD_IDS.has(card.id));
+    }
+    if (currentSidebarNavKey === 'extra') {
+      return MODULE_CARDS.filter((card) => EXTRA_CARD_IDS.has(card.id));
     }
     return MODULE_CARDS;
   }, [currentSidebarNavKey]);

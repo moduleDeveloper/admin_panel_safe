@@ -547,6 +547,24 @@
   letter-spacing: -0.03em;
 }
 
+.gallery-upload-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gallery-upload-limit-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .gallery-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);

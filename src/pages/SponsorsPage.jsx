@@ -828,6 +828,7 @@ export default function SponsorsPage() {
   const selectedPreviewPrimaryContact = String(selectedSponsor?.ContactNumber1 || selectedSponsor?.phone || '').trim();
   const selectedPreviewWhatsapp = String(selectedSponsor?.whatsapp_number || '').trim();
   const selectedPreviewWebsite = selectedSponsor?.website_url?.trim() || '';
+  const selectedPriority = selectedSponsor ? flashMap[selectedSponsor.id]?.priority : null;
 
   return (
     <div className="sp-root">
@@ -950,11 +951,18 @@ export default function SponsorsPage() {
                         onClick={() => setSelectedId(s.id)}
                         type="button"
                       >
-                        <div className="sp-left-avatar">
-                          {s.photo_url
-                            ? <img src={s.photo_url} alt={s.name} />
-                            : <span>{initials(s.name)}</span>
-                          }
+                        <div className="sp-left-item-top">
+                          <div className="sp-left-avatar">
+                            {s.photo_url
+                              ? <img src={s.photo_url} alt={s.name} />
+                              : <span>{initials(s.name)}</span>
+                            }
+                          </div>
+                          {flashMap[s.id]?.priority != null && (
+                            <div className="sp-priority-badge">
+                              Priority: {flashMap[s.id].priority}
+                            </div>
+                          )}
                         </div>
                         <div className="sp-left-item-body">
                           <div className="sp-left-item-title">{s.name}</div>
@@ -1008,9 +1016,9 @@ export default function SponsorsPage() {
                               )}
                             </div>
                             <div className="sp-public-content">
-                              <h5>{selectedPreviewCompany}</h5>
+                              <h5>{selectedPreviewName}</h5>
                               <div className="sp-public-company">
-                                <span>{selectedPreviewName}</span>
+                                <span>{selectedPreviewCompany}</span>
                                 {selectedPreviewCoPartner && <span className="sp-public-company-sep">|</span>}
                                 {selectedPreviewCoPartner && <span>{selectedPreviewCoPartner}</span>}
                               </div>
@@ -1018,12 +1026,17 @@ export default function SponsorsPage() {
                               <p>{selectedPreviewAbout}</p>
                             </div>
                           </div>
-                          <div className="sp-public-actions">
-                            {selectedPreviewPrimaryContact && <span>{selectedPreviewPrimaryContact}</span>}
-                            {selectedPreviewWhatsapp && <span>WhatsApp</span>}
-                            {selectedPreviewWebsite && <span>Website</span>}
+                        <div className="sp-public-actions">
+                          {selectedPreviewPrimaryContact && <span>{selectedPreviewPrimaryContact}</span>}
+                          {selectedPreviewWhatsapp && <span>WhatsApp</span>}
+                          {selectedPreviewWebsite && <span>Website</span>}
+                        </div>
+                        {selectedPriority != null && (
+                          <div className="sp-selected-priority">
+                            Priority: {selectedPriority}
                           </div>
-                        </article>
+                        )}
+                      </article>
 
                         <div className="sp-public-preview-side">
                           <p className="sp-public-owner-tag">
@@ -1475,9 +1488,9 @@ export default function SponsorsPage() {
                         )}
                       </div>
                       <div className="sp-public-content">
-                        <h5>{previewCompany}</h5>
+                        <h5>{previewName}</h5>
                         <div className="sp-public-company">
-                          <span>{previewName}</span>
+                          <span>{previewCompany}</span>
                           {previewCoPartner && <span className="sp-public-company-sep">|</span>}
                           {previewCoPartner && <span>{previewCoPartner}</span>}
                         </div>

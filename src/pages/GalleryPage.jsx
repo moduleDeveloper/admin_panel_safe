@@ -47,7 +47,7 @@ export default function GalleryPage() {
   const currentMemberId = location.state?.selectedMemberId || null;
   const FOLDER_PAGE_SIZE = 6;
   const PHOTO_BATCH_SIZE = 20;
-  const MAX_UPLOAD_COUNT = 10;
+  const MAX_UPLOAD_COUNT = 15;
   const MAX_IMAGE_SIZE_BYTES = 25 * 1024;
 
   useEffect(() => {
@@ -352,7 +352,7 @@ export default function GalleryPage() {
     }
 
     if (imageFiles.length > MAX_UPLOAD_COUNT) {
-      setError(`You can upload maximum ${MAX_UPLOAD_COUNT} photos at a time.`);
+      setError('Maximum 15 photos can be uploaded at a time.');
       return;
     }
 
@@ -852,8 +852,11 @@ export default function GalleryPage() {
                     </div>
                   </div>
 
-                  <div className="gallery-upload">
-                    <div className="gallery-upload-title">Add Photos</div>
+                <div className="gallery-upload">
+                    <div className="gallery-upload-title">
+                      <span>Add Photos</span>
+                      <span className="gallery-upload-limit-badge">Max 15 per upload</span>
+                    </div>
                     <label
                       className={`gallery-drop ${dragOver ? 'drag' : ''}`}
                       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -876,7 +879,7 @@ export default function GalleryPage() {
                       </div>
                     </label>
                     <div className="gallery-upload-note">
-                      Uploads go to {folderNameById.get(selectedFolderId)}. Max 10 photos, 25KB each. Original ratio is preserved and images are compressed.
+                      Uploads go to {folderNameById.get(selectedFolderId)}. Max 15 photos at a time, 25KB each. Original ratio is preserved and images are compressed.
                     </div>
                   </div>
                 </div>
