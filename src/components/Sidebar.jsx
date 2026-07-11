@@ -115,6 +115,18 @@ const navItems = [
     ),
   },
   {
+    id: 'nav-sales-marketing',
+    label: 'Sales and Marketing',
+    route: '/sales-marketing',
+    navKey: 'sales-marketing',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M3 17l5-5 4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M15 8h5v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     id: 'nav-social-media',
     label: 'Social Media',
     route: '/social-media',

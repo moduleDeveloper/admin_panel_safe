@@ -38,6 +38,11 @@ const AchievementsPage = lazy(() => import('./pages/AchievementsPage'));
 const LinkedTrustsPage = lazy(() => import('./pages/LinkedTrustsPage'));
 const NominationsPage = lazy(() => import('./pages/NominationsPage'));
 const MemberImportPage = lazy(() => import('./components/MemberImport'));
+const SalesMarketingPage = lazy(() => import('./pages/SalesMarketingPage'));
+const LeadManagementPage = lazy(() => import('./pages/LeadManagementPage'));
+const LeadDetailsPage = lazy(() => import('./pages/LeadDetailsPage'));
+const CampaignPage = lazy(() => import('./pages/CampaignPage'));
+const AddLeadsPage = lazy(() => import('./pages/AddLeadsPage'));
 
 function App() {
   return (
@@ -93,6 +98,11 @@ function App() {
           <Route path="/sub-feature-control" element={<SubFeatureControlPage />} />
           <Route path="/features-2-o" element={<Features20Page />} />
           <Route path="/user-management" element={<UserManagementPage />} />
+          <Route path="/sales-marketing" element={<SalesMarketingPage />} />
+          <Route path="/sales-marketing/campaign" element={<CampaignPage />} />
+          <Route path="/sales-marketing/add-leads" element={<AddLeadsPage />} />
+          <Route path="/sales-marketing/leads" element={<LeadManagementPage />} />
+          <Route path="/sales-marketing/leads/details" element={<LeadDetailsPage />} />
           <Route path="/social-media" element={<SocialMediaPage />} />
           <Route path="/social-media/accounts-details" element={<SocialMediaPage />} />
           <Route path="/social-media/create" element={<SocialMediaPage />} />

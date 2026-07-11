@@ -6,8 +6,6 @@ import { fetchFacilitiesByTrust } from './facilitiesService';
 import { fetchContactTrustByTrust } from './contactTrustService';
 import { fetchDonationsByTrust } from './donationsService';
 import { fetchMarqueeUpdatesByTrust } from './marqueeService';
-import { fetchTrustees } from './trusteesService';
-import { fetchRegisteredMembersByTrust, fetchAllMembersDirectory } from './membersService';
 
 let warmedTrustId = null;
 
@@ -26,13 +24,9 @@ export async function warmupTrustData(trustId) {
     fetchContactTrustByTrust(trustId),
     fetchDonationsByTrust(trustId),
     fetchMarqueeUpdatesByTrust(trustId),
-    fetchTrustees(trustId),
-    fetchRegisteredMembersByTrust(trustId),
-    fetchAllMembersDirectory(trustId),
   ]);
 }
 
 export function resetWarmupMarker() {
   warmedTrustId = null;
 }
-
