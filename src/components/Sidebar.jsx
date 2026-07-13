@@ -153,6 +153,18 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    id: 'nav-whatsapp',
+    label: 'Whatsapp',
+    route: '/whatsapp',
+    navKey: 'whatsapp',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M12 3.5a8.5 8.5 0 0 0-7.3 12.8L3.5 20.5l4.35-1.14A8.5 8.5 0 1 0 12 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M8.7 9.4c.2-.6.6-.6 1-.6h.4c.2 0 .4 0 .6.5.2.5.6 1.5.6 1.6.1.1.1.3 0 .5-.1.2-.2.3-.3.4-.2.2-.3.3-.1.6.6 1 1.3 1.6 2.3 2.1.3.1.4.1.6-.1.2-.2.7-.8.9-1 .2-.2.4-.2.6-.1.2.1 1.5.7 1.7.8.2.1.4.2.4.3 0 .2 0 .9-.3 1.3-.3.5-1.3 1-2.2 1.1-1.4.2-2.6-.2-4.6-1.9-2-1.7-2.6-3.1-2.7-3.6-.1-.5-.4-1.4.2-2.1Z" fill="currentColor" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Sidebar({ trustName = 'Trust', onDashboard, onLogout }) {
@@ -347,8 +359,10 @@ export default function Sidebar({ trustName = 'Trust', onDashboard, onLogout }) 
             const isTrusteesAppDesignView = item.id === 'nav-app-design' && location.pathname === '/trustees' && currentTrusteesView === 'logo';
             const isCompanyDetailsAccountsView =
               item.id === 'nav-company-details' && location.pathname === '/social-media/accounts-details';
+            const isWhatsappSection = item.id === 'nav-whatsapp' && location.pathname.startsWith('/whatsapp');
             const isActive =
               isCompanyDetailsAccountsView ||
+              isWhatsappSection ||
               isTrusteesCompanyView ||
               isTrusteesAppDesignView ||
               (location.pathname === item.route && (

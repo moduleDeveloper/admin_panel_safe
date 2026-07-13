@@ -32,6 +32,10 @@ const Features20Page = lazy(() => import('./pages/Features20Page'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
 const SocialMediaPage = lazy(() => import('./pages/SocialMediaPage'));
 const ProductPage = lazy(() => import('./pages/ProductPage'));
+const WhatsappPage = lazy(() => import('./pages/WhatsappPage'));
+const ServiceProviderPage = lazy(() => import('./pages/ServiceProviderPage'));
+const WhatsappMediaPage = lazy(() => import('./pages/WhatsappMediaPage'));
+const WhatsappTemplatePage = lazy(() => import('./pages/WhatsappTemplatePage'));
 const CreateVideoPage = lazy(() => import('./pages/CreateVideoPage'));
 const ShareAppPage = lazy(() => import('./pages/ShareAppPage'));
 const AchievementsPage = lazy(() => import('./pages/AchievementsPage'));
@@ -107,6 +111,16 @@ function App() {
           <Route path="/social-media/accounts-details" element={<SocialMediaPage />} />
           <Route path="/social-media/create" element={<SocialMediaPage />} />
           <Route path="/social-media/product" element={<ProductPage />} />
+          <Route path="/whatsapp" element={<WhatsappPage />} />
+          <Route path="/whatsapp/service-provider" element={<ServiceProviderPage />} />
+          <Route path="/whatsapp/service-provider/create" element={<ServiceProviderPage />} />
+          <Route path="/whatsapp/service-provider/edit" element={<ServiceProviderPage />} />
+          <Route path="/whatsapp/media" element={<WhatsappMediaPage />} />
+          <Route path="/whatsapp/media/create" element={<WhatsappMediaPage />} />
+          <Route path="/whatsapp/media/edit" element={<WhatsappMediaPage />} />
+          <Route path="/whatsapp/template" element={<WhatsappTemplatePage />} />
+          <Route path="/whatsapp/template/create" element={<WhatsappTemplatePage />} />
+          <Route path="/whatsapp/template/edit" element={<WhatsappTemplatePage />} />
           <Route path="/video/create" element={<CreateVideoPage />} />
           <Route path="/share-app" element={<ShareAppPage />} />
           <Route path="/achievements" element={<AchievementsPage />} />
