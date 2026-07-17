@@ -1,21 +1,61 @@
-name: Develop - Auto Test
+name: Admin Panel Develop Deploy
 
 on:
   push:
-    branches: [develop]
+    branches:
+      - develop
+
   pull_request:
-    branches: [develop]
+    branches:
+      - develop
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: Install
+          node-version: "20"
+
+      - name: Install Dependencies
         run: npm install
+
       - name: Build Check
         run: npm run build
+
+  deploy:
+    if: github.event_name == 'push'
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy Develop to Admin Staging
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+
+            cd /var/www/adminpanel/staging
+
+            git fetch origin
+            git switch develop || git switch -c develop origin/develop
+            git reset --hard origin/develop
+
+            npm install
+            rm -rf dist
+            npm run build
+
+            cd backend
+            npm install
+
+            pm2 restart adminpanel-staging --update-env
+            pm2 save
