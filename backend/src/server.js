@@ -4,6 +4,7 @@ import cors from 'cors';
 import { config } from './config/config.js';
 import videoRoutes from './routes/videoRoutes.js';
 import socialRoutes from './routes/socialRoutes.js';
+import leadsRoutes from './routes/leadsRoutes.js';
 
 globalThis.WebSocket = WebSocket;
 
@@ -57,6 +58,13 @@ app.get('/', (req, res) => {
         '/api/social/accounts/:trustId',
         '/api/social/post',
       ],
+      leads: [
+        '/api/leads/:trustId/member-match',
+        '/api/leads/:trustId/trust-member-match',
+        '/api/leads/:trustId',
+        '/api/leads/mkt-data/search',
+        '/api/leads/mkt-data/manage',
+      ],
     },
   });
 });
@@ -67,12 +75,13 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/video', videoRoutes);
 app.use('/api/social', socialRoutes);
+app.use('/api/leads', leadsRoutes);
 
-app.use((err, _req, res, _next) => {
+app.use((err, _req, res, next) => {
+  void next;
   res.status(500).json({ error: err?.message || 'Internal server error' });
 });
 
 app.listen(config.port, () => {
-  // eslint-disable-next-line no-console
   console.log(`Video backend running at http://localhost:${config.port}`);
 });
