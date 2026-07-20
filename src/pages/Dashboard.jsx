@@ -247,6 +247,21 @@ const MODULE_CARDS = [
     ),
   },
   {
+    id: 'card-bank-details',
+    label: 'Bank Details',
+    description: 'Manage trust bank account details',
+    route: '/company-details/bank-details',
+    gradient: 'linear-gradient(135deg, #059669 0%, #0D9488 100%)',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="6" width="18" height="13" rx="2.2" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.16)" />
+        <path d="M3 10h18" stroke="white" strokeWidth="1.8" />
+        <circle cx="8" cy="14.5" r="1.6" fill="white" />
+        <path d="M13 14.5h5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     id: 'card-noticeboard',
     label: 'Noticeboard',
     description: 'View notices and open individual updates',
@@ -466,7 +481,7 @@ const MODULE_CARDS = [
 ];
 
 const APP_DESIGN_CARD_IDS = new Set(['card-logo', 'card-theme', 'card-feature-control', 'card-sub-feature-control', 'card-features-2-o']);
-const COMPANY_DETAILS_CARD_IDS = new Set(['card-trust', 'card-social-media-account-details', 'card-create-video']);
+const COMPANY_DETAILS_CARD_IDS = new Set(['card-trust', 'card-social-media-account-details', 'card-create-video', 'card-bank-details']);
 const DASHBOARD_CARD_IDS = new Set();
 const HOME_PAGE_CARD_IDS = new Set(['card-sponsor', 'card-gallery', 'card-marquee']);
 const QUICK_ACTION_CARD_IDS = new Set(['card-profile', 'card-executive-body', 'card-noticeboard', 'card-events', 'card-facilities', 'card-donations', 'card-members', 'card-bulk-members-upload', 'card-achievements']);

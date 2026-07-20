@@ -44,6 +44,19 @@ const WHATSAPP_MODULES = [
       </svg>
     ),
   },
+  {
+    id: 'wa-module-campaign',
+    label: 'Whatsapp Campaign',
+    description: 'Manage campaigning & scheduling',
+    route: '/whatsapp/campaign',
+    gradient: 'linear-gradient(135deg, #EA580C 0%, #DB2777 100%)',
+    icon: (
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+        <path d="M3.5 4.5v6l16 1.5-16 1.5v6L21 12 3.5 4.5Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M16 5v3M16 16v3M20 8.5h3M20 15.5h3" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ];
 
 export default function WhatsappPage() {
