@@ -3,8 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import Sidebar from '../components/Sidebar';
 import WaCampImport from '../components/WaCampImport';
+import Pagination, { PAGE_SIZE } from '../components/Pagination';
 import { fetchWaTemplatesByTrust } from '../services/waTemplateService';
-import { createWaCamp, deleteWaCamp, fetchWaCampsByTrust, updateWaCamp } from '../services/waCampService';
+import { fetchWaCampsByTrust, submitWaCampaign } from '../services/waCampService';
 import './NoticeboardPage.css';
 
 const STATUS_OPTIONS = ['pending', 'sent', 'failed', 'cancelled'];
@@ -32,6 +33,13 @@ function getInitials(value = '') {
   return safe.charAt(0).toUpperCase();
 }
 
+function buildScheduledAt(date, time) {
+  if (!date || !time) return null;
+  const parsed = new Date(`${date}T${time}:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+}
+
 const EMPTY_FORM = {
   template_id: '',
   schedule_date: '',
@@ -56,22 +64,18 @@ export default function WaCampPage() {
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [updatingId, setUpdatingId] = useState(null);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [selectedId, setSelectedId] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [editingId, setEditingId] = useState(null);
+  const [page, setPage] = useState(1);
   const deferredSearch = useDeferredValue(search);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [senderList, setSenderList] = useState([]);
 
   const approvedTemplates = useMemo(() => templates.filter((item) => item.approved), [templates]);
-  const selectedFormTemplate = useMemo(
-    () => templates.find((item) => item.id === form.template_id) || null,
-    [templates, form.template_id]
-  );
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -154,6 +158,17 @@ export default function WaCampPage() {
   }, [filteredCampaigns, selectedId, loading, isFormRoute]);
 
   useEffect(() => {
+    const idx = filteredCampaigns.findIndex((item) => item.id === selectedId);
+    if (idx === -1) return;
+    const targetPage = Math.floor(idx / PAGE_SIZE) + 1;
+    setPage((prev) => (prev === targetPage ? prev : targetPage));
+  }, [selectedId, filteredCampaigns]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedCampaigns = filteredCampaigns.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  useEffect(() => {
     if (!isFormRoute) return;
 
     if (isCreateRoute) {
@@ -178,7 +193,7 @@ export default function WaCampPage() {
     setFormError('');
   }, [isFormRoute, isCreateRoute, isEditRoute, routeEditId, selectedId, campaigns]);
 
-  const handleSave = async () => {
+  const handleSend = async () => {
     setFormError('');
     if (!form.template_id) {
       setFormError('Template is required.');
@@ -193,53 +208,37 @@ export default function WaCampPage() {
       return;
     }
     if (senderList.length === 0) {
-      setFormError('Upload an Excel/CSV file and build the sender list before saving.');
+      setFormError('Upload an Excel/CSV file with at least one row first.');
+      return;
+    }
+
+    const scheduledAt = buildScheduledAt(form.schedule_date, form.schedule_time);
+    if (!scheduledAt) {
+      setFormError('Invalid schedule date/time.');
       return;
     }
 
     setSaving(true);
-    const payload = { ...form, sender_list: senderList };
+    const { data, error: submitError } = await submitWaCampaign({
+      trustId,
+      templateId: form.template_id,
+      rows: senderList,
+      scheduledAt,
+    });
 
-    if (editingId) {
-      const { data, error: updateError } = await updateWaCamp(editingId, payload);
-      if (updateError) {
-        setFormError(updateError.message || 'Unable to update campaign.');
-        setSaving(false);
-        return;
-      }
-      setCampaigns((prev) => prev.map((item) => (item.id === editingId ? data : item)));
-    } else {
-      const { data, error: createError } = await createWaCamp(payload);
-      if (createError) {
-        setFormError(createError.message || 'Unable to create campaign.');
-        setSaving(false);
-        return;
-      }
-      setCampaigns((prev) => [data, ...prev]);
-      setSelectedId(data.id);
+    if (submitError) {
+      setFormError(submitError.message || 'Unable to submit campaign.');
+      setSaving(false);
+      return;
     }
+
+    const { data: refreshed, error: refreshError } = await fetchWaCampsByTrust(trustId);
+    if (!refreshError) setCampaigns(refreshed || []);
+    setSelectedId(data?.wa_camp_id || '');
 
     resetForm();
     setSaving(false);
     if (isFormRoute) goToList();
-  };
-
-  const handleDelete = async (item) => {
-    const shouldDelete = window.confirm(`Delete campaign "${item?.template?.name || 'this entry'}"?`);
-    if (!shouldDelete) {
-      setActiveMenuId(null);
-      return;
-    }
-
-    setUpdatingId(item.id);
-    const { error: deleteError } = await deleteWaCamp(item.id);
-    if (deleteError) {
-      setError(deleteError.message || 'Unable to delete campaign.');
-    } else {
-      setCampaigns((prev) => prev.filter((entry) => entry.id !== item.id));
-    }
-    setUpdatingId(null);
-    setActiveMenuId(null);
   };
 
   const handleEdit = (item) => {
@@ -342,12 +341,13 @@ export default function WaCampPage() {
                 <section className="nb-form-section">
                   <h4 className="nb-section-title">Sender List</h4>
                   {!form.template_id ? (
-                    <div className="nb-empty">Select a template first to map its variables.</div>
+                    <div className="nb-empty">Select a template first.</div>
                   ) : (
                     <WaCampImport
-                      variables={selectedFormTemplate?.variables || []}
                       value={senderList}
                       onChange={setSenderList}
+                      templateId={form.template_id}
+                      trustId={trustId}
                     />
                   )}
                 </section>
@@ -365,8 +365,8 @@ export default function WaCampPage() {
                 >
                   Cancel
                 </button>
-                <button className="nb-add-btn" onClick={handleSave} disabled={saving} type="button">
-                  {saving ? 'Saving...' : editingId ? 'Update Campaign' : 'Save Campaign'}
+                <button className="nb-add-btn" onClick={handleSend} disabled={saving} type="button">
+                  {saving ? 'Sending...' : 'Send'}
                 </button>
               </div>
             </div>
@@ -436,7 +436,7 @@ export default function WaCampPage() {
                   {filteredCampaigns.length === 0 && (
                     <div className="nb-empty">No campaign matched your filters.</div>
                   )}
-                  {filteredCampaigns.map((item) => (
+                  {pagedCampaigns.map((item) => (
                     <button
                       key={item.id}
                       className={`nb-left-item ${selectedId === item.id ? 'active' : ''}`}
@@ -456,6 +456,12 @@ export default function WaCampPage() {
                     </button>
                   ))}
                 </div>
+                <Pagination
+                  page={safePage}
+                  totalPages={totalPages}
+                  onPrev={() => setPage((p) => Math.max(1, p - 1))}
+                  onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+                />
               </aside>
 
               <section className="nb-right-panel">
@@ -492,16 +498,8 @@ export default function WaCampPage() {
                         </button>
                         {activeMenuId === selectedCampaign.id && (
                           <div className="nb-card-menu">
-                            <button type="button" onClick={() => handleEdit(selectedCampaign)} disabled={updatingId === selectedCampaign.id}>
+                            <button type="button" onClick={() => handleEdit(selectedCampaign)}>
                               Edit Details
-                            </button>
-                            <button
-                              type="button"
-                              className="danger"
-                              onClick={() => handleDelete(selectedCampaign)}
-                              disabled={updatingId === selectedCampaign.id}
-                            >
-                              Delete
                             </button>
                           </div>
                         )}

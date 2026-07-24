@@ -2,10 +2,12 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import Sidebar from '../components/Sidebar';
+import ServiceProviderQuickAddModal from '../components/ServiceProviderQuickAddModal';
+import Pagination, { PAGE_SIZE } from '../components/Pagination';
 import { fetchWaServicesByTrust } from '../services/waServiceProviderService';
+import { createWaMedia, updateWaMedia, uploadWaMediaFile, replaceWaMediaFile } from '../services/waMediaService';
 import {
   createWaTemplate,
-  deleteWaTemplate,
   fetchWaTemplatesByTrust,
   updateWaTemplate,
 } from '../services/waTemplateService';
@@ -22,6 +24,26 @@ function getInitials(value = '') {
   const safe = String(value || '').trim();
   if (!safe) return 'T';
   return safe.charAt(0).toUpperCase();
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value <= 0) return '-';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = value;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+// `size` is stored in KB in the database.
+function bytesToKb(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.round((value / 1024) * 100) / 100;
 }
 
 const WHATSAPP_LANGUAGES = [
@@ -55,6 +77,7 @@ function createEmptyVar() {
 
 const EMPTY_FORM = {
   wa_service_id: '',
+  wa_media_id: '',
   name: '',
   language: 'en',
   text: '',
@@ -62,6 +85,12 @@ const EMPTY_FORM = {
   purpose: '',
   footer: '',
   approved: false,
+};
+
+const EMPTY_MEDIA_FORM = {
+  name: '',
+  purpose: '',
+  is_active: true,
 };
 
 export default function WhatsappTemplatePage() {
@@ -82,23 +111,44 @@ export default function WhatsappTemplatePage() {
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
-  const [activeMenuId, setActiveMenuId] = useState(null);
   const [selectedId, setSelectedId] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [editingId, setEditingId] = useState(null);
+  const [showAddProvider, setShowAddProvider] = useState(false);
+  const [editingService, setEditingService] = useState(null);
+  const [page, setPage] = useState(1);
   const deferredSearch = useDeferredValue(search);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [variables, setVariables] = useState([createEmptyVar()]);
+  const [mediaForm, setMediaForm] = useState(EMPTY_MEDIA_FORM);
+  const [existingMedia, setExistingMedia] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const [replacingMedia, setReplacingMedia] = useState(false);
 
   const activeServices = useMemo(() => services.filter((item) => item.is_active), [services]);
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
     setVariables([createEmptyVar()]);
+    setMediaForm(EMPTY_MEDIA_FORM);
+    setExistingMedia(null);
+    setSelectedFile(null);
+    setFilePreviewUrl('');
+    setReplacingMedia(false);
     setFormError('');
     setEditingId(null);
+  };
+
+  const handleFile = (file) => {
+    if (!file) return;
+    setFormError('');
+    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+    setSelectedFile(file);
+    setFilePreviewUrl(file.type.startsWith('image/') ? URL.createObjectURL(file) : '');
   };
 
   const goToList = () => {
@@ -127,10 +177,10 @@ export default function WhatsappTemplatePage() {
   }, [navigate, trustId, userName, trust, currentSidebarNavKey]);
 
   useEffect(() => {
-    const closeMenu = () => setActiveMenuId(null);
-    document.addEventListener('click', closeMenu);
-    return () => document.removeEventListener('click', closeMenu);
-  }, []);
+    return () => {
+      if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+    };
+  }, [filePreviewUrl]);
 
   const statusCounts = useMemo(() => {
     return templates.reduce(
@@ -180,6 +230,17 @@ export default function WhatsappTemplatePage() {
   }, [filteredTemplates, selectedId, loading, isFormRoute]);
 
   useEffect(() => {
+    const idx = filteredTemplates.findIndex((item) => item.id === selectedId);
+    if (idx === -1) return;
+    const targetPage = Math.floor(idx / PAGE_SIZE) + 1;
+    setPage((prev) => (prev === targetPage ? prev : targetPage));
+  }, [selectedId, filteredTemplates]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTemplates.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedTemplates = filteredTemplates.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  useEffect(() => {
     if (!isFormRoute) return;
 
     if (isCreateRoute) {
@@ -195,6 +256,7 @@ export default function WhatsappTemplatePage() {
 
     setForm({
       wa_service_id: target.wa_service_id || '',
+      wa_media_id: target.wa_media_id || '',
       name: target.name || '',
       language: target.language || 'en',
       text: target.text || '',
@@ -203,6 +265,19 @@ export default function WhatsappTemplatePage() {
       footer: target.footer || '',
       approved: target.approved === true,
     });
+    setMediaForm(
+      target.waMedia
+        ? {
+            name: target.waMedia.name || '',
+            purpose: target.waMedia.purpose || '',
+            is_active: target.waMedia.is_active !== false,
+          }
+        : EMPTY_MEDIA_FORM
+    );
+    setExistingMedia(target.waMedia || null);
+    setSelectedFile(null);
+    setFilePreviewUrl('');
+    setReplacingMedia(false);
     setVariables(target.variables?.length ? target.variables.map((v) => ({ ...v })) : [createEmptyVar()]);
     setEditingId(target.id);
     setFormError('');
@@ -223,8 +298,73 @@ export default function WhatsappTemplatePage() {
       return;
     }
 
+    const wantsNewMedia = !form.wa_media_id && mediaForm.name.trim();
+    if (wantsNewMedia && !selectedFile) {
+      setFormError('Please select a file for the new media.');
+      return;
+    }
+    if (!form.wa_media_id && selectedFile && !mediaForm.name.trim()) {
+      setFormError('Media Name is required to upload a file.');
+      return;
+    }
+
     setSaving(true);
-    const payload = { ...form, trust_id: trustId };
+
+    let finalMediaId = form.wa_media_id || null;
+
+    if (form.wa_media_id) {
+      if (mediaForm.name.trim()) {
+        const { error: mediaError } = await updateWaMedia(
+          form.wa_media_id,
+          { name: mediaForm.name, purpose: mediaForm.purpose, is_active: mediaForm.is_active },
+          trustId
+        );
+        if (mediaError) {
+          setFormError(mediaError.message || 'Unable to update media.');
+          setSaving(false);
+          return;
+        }
+
+        if (replacingMedia && selectedFile) {
+          const { error: replaceError } = await replaceWaMediaFile(form.wa_media_id, selectedFile, {
+            trustId,
+            oldPublicUrl: existingMedia?.public_url || '',
+          });
+          if (replaceError) {
+            setFormError(replaceError.message || 'Unable to replace file.');
+            setSaving(false);
+            return;
+          }
+        }
+      } else {
+        finalMediaId = null;
+      }
+    } else if (wantsNewMedia) {
+      const { data: uploaded, error: uploadError } = await uploadWaMediaFile(selectedFile, { trustId });
+      if (uploadError) {
+        setFormError(uploadError.message || 'Unable to upload file.');
+        setSaving(false);
+        return;
+      }
+      const { data: createdMedia, error: mediaCreateError } = await createWaMedia({
+        trust_id: trustId,
+        name: mediaForm.name,
+        purpose: mediaForm.purpose,
+        is_active: mediaForm.is_active,
+        public_url: uploaded.publicUrl,
+        type: uploaded.type,
+        extn: uploaded.extn,
+        size: bytesToKb(uploaded.size),
+      });
+      if (mediaCreateError) {
+        setFormError(mediaCreateError.message || 'Unable to create media.');
+        setSaving(false);
+        return;
+      }
+      finalMediaId = createdMedia.id;
+    }
+
+    const payload = { ...form, wa_media_id: finalMediaId, trust_id: trustId };
 
     if (editingId) {
       const { data, error: updateError } = await updateWaTemplate(editingId, payload, variables, trustId);
@@ -250,27 +390,10 @@ export default function WhatsappTemplatePage() {
     if (isFormRoute) goToList();
   };
 
-  const handleDelete = async (item) => {
-    const shouldDelete = window.confirm(`Delete template "${item?.name || 'this entry'}"?`);
-    if (!shouldDelete) {
-      setActiveMenuId(null);
-      return;
-    }
-
-    setUpdatingId(item.id);
-    const { error: deleteError } = await deleteWaTemplate(item.id, trustId);
-    if (deleteError) {
-      setError(deleteError.message || 'Unable to delete template.');
-    } else {
-      setTemplates((prev) => prev.filter((entry) => entry.id !== item.id));
-    }
-    setUpdatingId(null);
-    setActiveMenuId(null);
-  };
-
   const handleEdit = (item) => {
     setForm({
       wa_service_id: item.wa_service_id || '',
+      wa_media_id: item.wa_media_id || '',
       name: item.name || '',
       language: item.language || 'en',
       text: item.text || '',
@@ -279,10 +402,22 @@ export default function WhatsappTemplatePage() {
       footer: item.footer || '',
       approved: item.approved === true,
     });
+    setMediaForm(
+      item.waMedia
+        ? {
+            name: item.waMedia.name || '',
+            purpose: item.waMedia.purpose || '',
+            is_active: item.waMedia.is_active !== false,
+          }
+        : EMPTY_MEDIA_FORM
+    );
+    setExistingMedia(item.waMedia || null);
+    setSelectedFile(null);
+    setFilePreviewUrl('');
+    setReplacingMedia(false);
     setVariables(item.variables?.length ? item.variables.map((v) => ({ ...v })) : [createEmptyVar()]);
     setEditingId(item.id);
     setFormError('');
-    setActiveMenuId(null);
     navigate(`/whatsapp/template/edit?id=${item.id}`, {
       state: { userName, trust, editId: item.id, sidebarNavKey: currentSidebarNavKey },
     });
@@ -330,6 +465,28 @@ export default function WhatsappTemplatePage() {
         <section className="nb-content">
           {error && <div className="nb-error">{error}</div>}
 
+          {showAddProvider && (
+            <ServiceProviderQuickAddModal
+              trustId={trustId}
+              editingService={editingService}
+              onClose={() => {
+                setShowAddProvider(false);
+                setEditingService(null);
+              }}
+              onSaved={(savedService) => {
+                setServices((prev) => {
+                  const exists = prev.some((item) => item.id === savedService.id);
+                  return exists
+                    ? prev.map((item) => (item.id === savedService.id ? savedService : item))
+                    : [savedService, ...prev];
+                });
+                setForm((prev) => ({ ...prev, wa_service_id: savedService.id }));
+                setShowAddProvider(false);
+                setEditingService(null);
+              }}
+            />
+          )}
+
           {isFormRoute && (
             <div className="nb-form-card">
               <h3>{editingId ? 'Edit Template' : 'Create Template'}</h3>
@@ -339,17 +496,44 @@ export default function WhatsappTemplatePage() {
                   <div className="nb-form-grid nb-form-grid-2">
                     <label>
                       <span>Service Provider *</span>
-                      <select
-                        value={form.wa_service_id}
-                        onChange={(e) => setForm((prev) => ({ ...prev, wa_service_id: e.target.value }))}
-                      >
-                        <option value="">Select active service provider</option>
-                        {activeServices.map((service) => (
-                          <option key={service.id} value={service.id}>
-                            {service.name} ({service.provider})
-                          </option>
-                        ))}
-                      </select>
+                      <div className="nb-input-with-actions">
+                        <select
+                          style={{ flex: 1 }}
+                          value={form.wa_service_id}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '__add_new__') {
+                              setEditingService(null);
+                              setShowAddProvider(true);
+                              return;
+                            }
+                            setForm((prev) => ({ ...prev, wa_service_id: value }));
+                          }}
+                        >
+                          <option value="">Select active service provider</option>
+                          <option value="__add_new__">+ Add Service Provider</option>
+                          {activeServices.map((service) => (
+                            <option key={service.id} value={service.id}>
+                              {service.name} ({service.provider})
+                            </option>
+                          ))}
+                        </select>
+                        {form.wa_service_id && form.wa_service_id !== '__add_new__' && (
+                          <button
+                            type="button"
+                            className="nb-input-action-btn"
+                            title="Edit service provider"
+                            onClick={() => {
+                              const target = services.find((item) => item.id === form.wa_service_id);
+                              if (!target) return;
+                              setEditingService(target);
+                              setShowAddProvider(true);
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </div>
                     </label>
                     <label>
                       <span>Name *</span>
@@ -418,6 +602,105 @@ export default function WhatsappTemplatePage() {
                       <span>Approved</span>
                     </label>
                   </div>
+                </section>
+
+                <section className="nb-form-section">
+                  <h4 className="nb-section-title">Media (optional)</h4>
+                  <div className="nb-form-grid nb-form-grid-2">
+                    <label>
+                      <span>Name</span>
+                      <input
+                        value={mediaForm.name}
+                        onChange={(e) => setMediaForm((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="Enter media name"
+                      />
+                    </label>
+                    <label>
+                      <span>Purpose</span>
+                      <input
+                        value={mediaForm.purpose}
+                        onChange={(e) => setMediaForm((prev) => ({ ...prev, purpose: e.target.value }))}
+                        placeholder="e.g. Marketing, Notification"
+                      />
+                    </label>
+                    <label className="nb-checkbox-field">
+                      <input
+                        type="checkbox"
+                        checked={mediaForm.is_active}
+                        onChange={(e) => setMediaForm((prev) => ({ ...prev, is_active: e.target.checked }))}
+                      />
+                      <span>Active</span>
+                    </label>
+                  </div>
+
+                  {(!form.wa_media_id || replacingMedia) && (
+                    <div className="nb-span-full" style={{ marginTop: 12 }}>
+                      <span>File</span>
+                      <p className="nb-dropzone-sub" style={{ margin: '4px 0 8px' }}>
+                        Uploaded as-is, no compression.
+                      </p>
+                      <label
+                        className={`nb-dropzone ${dragOver ? 'drag' : ''}`}
+                        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files?.[0]); }}
+                      >
+                        <input type="file" onChange={(e) => handleFile(e.target.files?.[0])} />
+                        <div className="nb-dropzone-inner">
+                          <span>Drag & drop file here</span>
+                          <span className="nb-dropzone-sub">or click to browse</span>
+                        </div>
+                      </label>
+                      {selectedFile && (
+                        <div className="nb-file-preview">
+                          {filePreviewUrl ? (
+                            <img src={filePreviewUrl} alt={selectedFile.name} />
+                          ) : (
+                            <div className="nb-file-preview-icon">{selectedFile.name.split('.').pop()}</div>
+                          )}
+                          <div className="nb-file-preview-body">
+                            <div className="nb-file-preview-name">{selectedFile.name}</div>
+                            <div className="nb-file-preview-meta">{formatBytes(selectedFile.size)}</div>
+                          </div>
+                        </div>
+                      )}
+                      {replacingMedia && (
+                        <button
+                          type="button"
+                          className="nb-input-action-btn"
+                          style={{ marginTop: 8 }}
+                          onClick={() => {
+                            setReplacingMedia(false);
+                            setSelectedFile(null);
+                            if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+                            setFilePreviewUrl('');
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {form.wa_media_id && existingMedia && !replacingMedia && (
+                    <div className="nb-file-preview" style={{ marginTop: 12 }}>
+                      {existingMedia.type === 'image' && existingMedia.public_url ? (
+                        <img src={existingMedia.public_url} alt={existingMedia.name} />
+                      ) : (
+                        <div className="nb-file-preview-icon">{existingMedia.extn || '-'}</div>
+                      )}
+                      <div className="nb-file-preview-body">
+                        <div className="nb-file-preview-name">Existing file (unchanged)</div>
+                      </div>
+                      <button
+                        type="button"
+                        className="nb-input-action-btn"
+                        onClick={() => setReplacingMedia(true)}
+                      >
+                        Replace File
+                      </button>
+                    </div>
+                  )}
                 </section>
 
                 <section className="nb-form-section">
@@ -573,7 +856,7 @@ export default function WhatsappTemplatePage() {
                   {filteredTemplates.length === 0 && (
                     <div className="nb-empty">No template matched your filters.</div>
                   )}
-                  {filteredTemplates.map((item) => (
+                  {pagedTemplates.map((item) => (
                     <button
                       key={item.id}
                       className={`nb-left-item ${selectedId === item.id ? 'active' : ''}`}
@@ -589,6 +872,12 @@ export default function WhatsappTemplatePage() {
                     </button>
                   ))}
                 </div>
+                <Pagination
+                  page={safePage}
+                  totalPages={totalPages}
+                  onPrev={() => setPage((p) => Math.max(1, p - 1))}
+                  onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+                />
               </aside>
 
               <section className="nb-right-panel">
@@ -622,41 +911,6 @@ export default function WhatsappTemplatePage() {
                           </div>
                         </div>
                       </div>
-                      <div className="nb-card-menu-wrap">
-                        <button
-                          type="button"
-                          className="nb-card-menu-btn"
-                          title="Actions"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setActiveMenuId((prev) => (prev === selectedTemplate.id ? null : selectedTemplate.id));
-                          }}
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                          </svg>
-                        </button>
-                        {activeMenuId === selectedTemplate.id && (
-                          <div className="nb-card-menu">
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(selectedTemplate)}
-                              disabled={updatingId === selectedTemplate.id}
-                            >
-                              Edit Details
-                            </button>
-                            <button
-                              type="button"
-                              className="danger"
-                              onClick={() => handleDelete(selectedTemplate)}
-                              disabled={updatingId === selectedTemplate.id}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
                     </div>
 
                     <div className="nb-profile-details">
@@ -665,6 +919,7 @@ export default function WhatsappTemplatePage() {
                       </div>
                       <div className="nb-profile-detail-grid">
                         <div><span>Service Provider</span><strong>{selectedTemplate.waService?.name || '-'}</strong></div>
+                        <div><span>Media</span><strong>{selectedTemplate.waMedia?.name || 'No media'}</strong></div>
                         <div><span>Language</span><strong>{languageLabel(selectedTemplate.language)}</strong></div>
                         <div><span>Type</span><strong>{selectedTemplate.type || '-'}</strong></div>
                         <div><span>Purpose</span><strong>{selectedTemplate.purpose || '-'}</strong></div>

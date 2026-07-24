@@ -5,6 +5,7 @@ import { config } from './config/config.js';
 import videoRoutes from './routes/videoRoutes.js';
 import socialRoutes from './routes/socialRoutes.js';
 import leadsRoutes from './routes/leadsRoutes.js';
+import waTemplateRoutes from './routes/waTemplateRoutes.js';
 
 globalThis.WebSocket = WebSocket;
 
@@ -65,6 +66,9 @@ app.get('/', (req, res) => {
         '/api/leads/mkt-data/search',
         '/api/leads/mkt-data/manage',
       ],
+      whatsapp_templates: [
+        '/api/whatsapp-templates/:trustId',
+      ],
     },
   });
 });
@@ -76,6 +80,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/video', videoRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/leads', leadsRoutes);
+app.use('/api/whatsapp-templates', waTemplateRoutes);
 
 app.use((err, _req, res, next) => {
   void next;

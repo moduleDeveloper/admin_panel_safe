@@ -5,13 +5,27 @@ const TABLE_NAME = 'WaCamp';
 const TEMPLATE_EMBED = 'WaTemp(id, name, trust_id, language, type, var_count)';
 const MAX_FETCH = 200;
 
+// New rows (created via wa_camp_curi) only have a combined `scheduled_at`
+// column — split it into date/time strings so the existing UI keeps working.
+function splitScheduledAt(scheduledAt) {
+  if (!scheduledAt) return { date: '', time: '' };
+  const parsed = new Date(scheduledAt);
+  if (Number.isNaN(parsed.getTime())) return { date: '', time: '' };
+  const pad = (n) => String(n).padStart(2, '0');
+  return {
+    date: `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}`,
+    time: `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`,
+  };
+}
+
 function normalizeRow(row = {}) {
+  const derived = splitScheduledAt(row.scheduled_at);
   return {
     id: row.id,
     template_id: row.template_id || null,
     template: row.WaTemp || null,
-    schedule_date: row.schedule_date || '',
-    schedule_time: row.schedule_time || '',
+    schedule_date: row.schedule_date || derived.date,
+    schedule_time: row.schedule_time || derived.time,
     sender_list: Array.isArray(row.sender_list) ? row.sender_list : [],
     status: row.status || 'pending',
     created_at: row.created_at || null,
@@ -87,6 +101,30 @@ export async function updateWaCamp(campId, updates = {}) {
 
   invalidateCache('wa-camp:');
   return fetchWaCampById(campId);
+}
+
+// Sends the raw uploaded rows straight to wa_camp_curi — it validates the
+// template/service, enforces max_camp_size, cleans up each row's phone number,
+// and inserts the WaCamp row itself. Create-only (no edit support).
+export async function submitWaCampaign({ trustId, templateId, rows, scheduledAt }) {
+  if (!templateId) return { data: null, error: { message: 'Template is required.' } };
+  if (!scheduledAt) return { data: null, error: { message: 'Scheduled date and time are required.' } };
+  if (!Array.isArray(rows) || !rows.length) {
+    return { data: null, error: { message: 'Upload a file with at least one row first.' } };
+  }
+
+  const { data, error } = await supabase.rpc('wa_camp_curi', {
+    p_wa_temp_id: templateId,
+    p_trust_id: trustId,
+    p_rows: rows,
+    p_scheduled_at: scheduledAt,
+  });
+
+  if (error) return { data: null, error: { message: error.message || 'Unable to submit campaign.' } };
+  if (data?.success === false) return { data: null, error: { message: data.error || 'Unable to submit campaign.' } };
+
+  invalidateCache('wa-camp:');
+  return { data, error: null };
 }
 
 export async function deleteWaCamp(campId) {

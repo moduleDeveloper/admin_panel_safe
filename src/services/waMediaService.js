@@ -152,6 +152,10 @@ export async function updateWaMedia(mediaId, updates = {}, trustId = null) {
     ...(updates.name !== undefined ? { name: String(updates.name || '').trim() } : {}),
     ...(updates.purpose !== undefined ? { purpose: String(updates.purpose || '').trim() || null } : {}),
     ...(updates.is_active !== undefined ? { is_active: updates.is_active !== false } : {}),
+    ...(updates.public_url !== undefined ? { public_url: updates.public_url } : {}),
+    ...(updates.type !== undefined ? { type: updates.type } : {}),
+    ...(updates.extn !== undefined ? { extn: updates.extn } : {}),
+    ...(updates.size !== undefined ? { size: updates.size } : {}),
     updated_at: new Date().toISOString(),
   };
 
@@ -161,6 +165,34 @@ export async function updateWaMedia(mediaId, updates = {}, trustId = null) {
   const { data, error } = await query.select('*').single();
   if (!error) invalidateCache('wa-media:');
   return { data: data ? normalizeRow(data) : null, error };
+}
+
+// Uploads a new file for an existing media record, points the record at it, then removes the old storage object.
+export async function replaceWaMediaFile(mediaId, file, { trustId = null, oldPublicUrl = '' } = {}) {
+  if (!mediaId) return { data: null, error: { message: 'No media id provided.' } };
+  if (!file) return { data: null, error: { message: 'No file selected.' } };
+
+  const { data: uploaded, error: uploadError } = await uploadWaMediaFile(file, { trustId });
+  if (uploadError) return { data: null, error: uploadError };
+
+  const { data, error } = await updateWaMedia(
+    mediaId,
+    {
+      public_url: uploaded.publicUrl,
+      type: uploaded.type,
+      extn: uploaded.extn,
+      size: Math.round((uploaded.size / 1024) * 100) / 100,
+    },
+    trustId
+  );
+  if (error) return { data: null, error };
+
+  const oldPath = extractStorageObjectPath(oldPublicUrl);
+  if (oldPath) {
+    await supabase.storage.from(BUCKET).remove([oldPath]);
+  }
+
+  return { data, error: null };
 }
 
 export async function deleteWaMedia(mediaId, trustId = null, publicUrl = '') {

@@ -6,9 +6,10 @@ const WHATSAPP_MODULES = [
   {
     id: 'wa-module-service-provider',
     label: 'Service Provider',
-    description: 'Manage WhatsApp service provider settings',
+    description: 'Manage from Whatsapp Template',
     route: '/whatsapp/service-provider',
     gradient: 'linear-gradient(135deg, #0F766E 0%, #2563EB 100%)',
+    disabled: true,
     icon: (
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
         <path d="M3 7.5L12 3l9 4.5-9 4.5L3 7.5Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
@@ -20,9 +21,10 @@ const WHATSAPP_MODULES = [
   {
     id: 'wa-module-media',
     label: 'Whatsapp Media',
-    description: 'Manage WhatsApp media library',
+    description: 'Manage from Whatsapp Template',
     route: '/whatsapp/media',
     gradient: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+    disabled: true,
     icon: (
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
         <rect x="3.5" y="4.5" width="17" height="15" rx="2.4" stroke="white" strokeWidth="1.8" />
@@ -57,7 +59,26 @@ const WHATSAPP_MODULES = [
       </svg>
     ),
   },
+  {
+    id: 'wa-module-audience',
+    label: 'Whatsapp Audience',
+    description: 'View campaign recipients & delivery status',
+    route: '/whatsapp/audience',
+    gradient: 'linear-gradient(135deg, #0EA5E9 0%, #6366F1 100%)',
+    icon: (
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+        <circle cx="9" cy="8" r="3.2" stroke="white" strokeWidth="1.8" />
+        <path d="M3.5 20c0-3.5 2.5-6 5.5-6s5.5 2.5 5.5 6" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+        <circle cx="17.5" cy="9" r="2.4" stroke="white" strokeWidth="1.8" />
+        <path d="M14.5 20c0-2.8 1.6-5 3.5-5s3.5 2.2 3.5 5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ];
+
+const WHATSAPP_MODULES_ORDERED = [...WHATSAPP_MODULES].sort(
+  (a, b) => Boolean(a.disabled) - Boolean(b.disabled)
+);
 
 export default function WhatsappPage() {
   const navigate = useNavigate();
@@ -89,16 +110,20 @@ export default function WhatsappPage() {
           </div>
 
           <div className="wa-modules-grid">
-            {WHATSAPP_MODULES.map((card, i) => (
+            {WHATSAPP_MODULES_ORDERED.map((card, i) => (
               <button
                 key={card.id}
-                className="wa-module-card"
+                className={`wa-module-card ${card.disabled ? 'wa-module-card-disabled' : ''}`}
                 style={{ background: card.gradient, animationDelay: `${i * 0.08}s` }}
-                onClick={() =>
-                  navigate(card.route, { state: { userName, trust, superuserId, sidebarNavKey: 'whatsapp' } })
-                }
-                title={card.label}
+                onClick={() => {
+                  if (card.disabled) return;
+                  navigate(card.route, { state: { userName, trust, superuserId, sidebarNavKey: 'whatsapp' } });
+                }}
+                disabled={card.disabled}
+                aria-disabled={card.disabled}
+                title={card.disabled ? `${card.label} (managed from Whatsapp Template)` : card.label}
               >
+                {card.disabled && <span className="wa-module-card-badge">Deactivated</span>}
                 <div className="wa-module-card-shine" />
                 <div className="wa-module-icon-wrap">{card.icon}</div>
                 <div className="wa-module-card-body">

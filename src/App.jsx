@@ -37,6 +37,7 @@ const ServiceProviderPage = lazy(() => import('./pages/ServiceProviderPage'));
 const WhatsappMediaPage = lazy(() => import('./pages/WhatsappMediaPage'));
 const WhatsappTemplatePage = lazy(() => import('./pages/WhatsappTemplatePage'));
 const WaCampPage = lazy(() => import('./pages/WaCampPage'));
+const WaCampAudiencePage = lazy(() => import('./pages/WaCampAudiencePage'));
 const BankDetailsPage = lazy(() => import('./pages/BankDetailsPage'));
 const CreateVideoPage = lazy(() => import('./pages/CreateVideoPage'));
 const ShareAppPage = lazy(() => import('./pages/ShareAppPage'));
@@ -126,6 +127,7 @@ function App() {
           <Route path="/whatsapp/campaign" element={<WaCampPage />} />
           <Route path="/whatsapp/campaign/create" element={<WaCampPage />} />
           <Route path="/whatsapp/campaign/edit" element={<WaCampPage />} />
+          <Route path="/whatsapp/audience" element={<WaCampAudiencePage />} />
           <Route path="/company-details/bank-details" element={<BankDetailsPage />} />
           <Route path="/company-details/bank-details/create" element={<BankDetailsPage />} />
           <Route path="/company-details/bank-details/edit" element={<BankDetailsPage />} />
