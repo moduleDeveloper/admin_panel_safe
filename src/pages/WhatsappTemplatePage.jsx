@@ -62,9 +62,9 @@ const WHATSAPP_LANGUAGES = [
 ];
 
 const WHATSAPP_TEMPLATE_TYPES = [
-  { value: 'Marketing', label: 'Marketing' },
-  { value: 'Utility', label: 'Utility' },
-  { value: 'Authentication', label: 'Authentication' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'utility', label: 'Utility' },
+  { value: 'authentication', label: 'Authentication' },
 ];
 
 function languageLabel(value = '') {

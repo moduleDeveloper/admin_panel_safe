@@ -35,6 +35,7 @@ export async function fetchWaServicesByTrust(trustId) {
         .order('created_at', { ascending: false })
         .range(0, MAX_FETCH - 1);
 
+      if (error) console.error('[WA:ServiceProvider] fetchWaServicesByTrust failed', { trustId, error });
       return { data: (data || []).map(normalizeRow), error };
     },
     12000
@@ -55,7 +56,8 @@ export async function createWaService(payload = {}) {
   };
 
   const { data, error } = await supabase.from(TABLE_NAME).insert([row]).select('*').single();
-  if (!error) invalidateCache('wa-service:');
+  if (error) console.error('[WA:ServiceProvider] createWaService failed', { row, error });
+  else invalidateCache('wa-service:');
   return { data: data ? normalizeRow(data) : null, error };
 }
 
@@ -78,7 +80,8 @@ export async function updateWaService(serviceId, updates = {}, trustId = null) {
   if (trustId) query = query.eq('trust_id', trustId);
 
   const { data, error } = await query.select('*').single();
-  if (!error) invalidateCache('wa-service:');
+  if (error) console.error('[WA:ServiceProvider] updateWaService failed', { serviceId, payload, error });
+  else invalidateCache('wa-service:');
   return { data: data ? normalizeRow(data) : null, error };
 }
 
@@ -89,6 +92,7 @@ export async function deleteWaService(serviceId, trustId = null) {
   if (trustId) query = query.eq('trust_id', trustId);
 
   const { error } = await query;
-  if (!error) invalidateCache('wa-service:');
+  if (error) console.error('[WA:ServiceProvider] deleteWaService failed', { serviceId, error });
+  else invalidateCache('wa-service:');
   return { error };
 }

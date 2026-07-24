@@ -40,6 +40,7 @@ async function fetchWaCampById(id) {
     .select(`*, ${TEMPLATE_EMBED}`)
     .eq('id', id)
     .single();
+  if (error) console.error('[WA:Campaign] fetchWaCampById failed', { id, error });
   return { data: data ? normalizeRow(data) : null, error };
 }
 
@@ -56,6 +57,7 @@ export async function fetchWaCampsByTrust(trustId) {
         .order('created_at', { ascending: false })
         .range(0, MAX_FETCH - 1);
 
+      if (error) console.error('[WA:Campaign] fetchWaCampsByTrust failed', { trustId, error });
       return { data: (data || []).map(normalizeRow), error };
     },
     12000
@@ -76,7 +78,10 @@ export async function createWaCamp(payload = {}) {
   };
 
   const { data, error } = await supabase.from(TABLE_NAME).insert([row]).select('id').single();
-  if (error) return { data: null, error };
+  if (error) {
+    console.error('[WA:Campaign] createWaCamp failed', { payload, error });
+    return { data: null, error };
+  }
 
   invalidateCache('wa-camp:');
   return fetchWaCampById(data.id);
@@ -97,7 +102,10 @@ export async function updateWaCamp(campId, updates = {}) {
   };
 
   const { error: updateError } = await supabase.from(TABLE_NAME).update(payload).eq('id', campId).select('id').single();
-  if (updateError) return { data: null, error: updateError };
+  if (updateError) {
+    console.error('[WA:Campaign] updateWaCamp failed', { campId, payload, error: updateError });
+    return { data: null, error: updateError };
+  }
 
   invalidateCache('wa-camp:');
   return fetchWaCampById(campId);
@@ -120,8 +128,14 @@ export async function submitWaCampaign({ trustId, templateId, rows, scheduledAt 
     p_scheduled_at: scheduledAt,
   });
 
-  if (error) return { data: null, error: { message: error.message || 'Unable to submit campaign.' } };
-  if (data?.success === false) return { data: null, error: { message: data.error || 'Unable to submit campaign.' } };
+  if (error) {
+    console.error('[WA:Campaign] submitWaCampaign RPC error', { trustId, templateId, error });
+    return { data: null, error: { message: error.message || 'Unable to submit campaign.' } };
+  }
+  if (data?.success === false) {
+    console.error('[WA:Campaign] submitWaCampaign rejected', { trustId, templateId, data });
+    return { data: null, error: { message: data.error || 'Unable to submit campaign.' } };
+  }
 
   invalidateCache('wa-camp:');
   return { data, error: null };
@@ -131,6 +145,7 @@ export async function deleteWaCamp(campId) {
   if (!campId) return { error: { message: 'No campaign id provided.' } };
 
   const { error } = await supabase.from(TABLE_NAME).delete().eq('id', campId);
-  if (!error) invalidateCache('wa-camp:');
+  if (error) console.error('[WA:Campaign] deleteWaCamp failed', { campId, error });
+  else invalidateCache('wa-camp:');
   return { error };
 }

@@ -82,6 +82,7 @@ export async function fetchWaMediaByTrust(trustId) {
         .order('created_at', { ascending: false })
         .range(0, MAX_FETCH - 1);
 
+      if (error) console.error('[WA:Media] fetchWaMediaByTrust failed', { trustId, error });
       return { data: (data || []).map(normalizeRow), error };
     },
     12000
@@ -100,6 +101,7 @@ export async function uploadWaMediaFile(file, { trustId = null } = {}) {
   });
 
   if (uploadError) {
+    console.error('[WA:Media] uploadWaMediaFile failed', { path, trustId, uploadError });
     if (String(uploadError.message || '').toLowerCase().includes('bucket not found')) {
       return {
         data: null,
@@ -111,6 +113,7 @@ export async function uploadWaMediaFile(file, { trustId = null } = {}) {
 
   const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(path);
   if (!publicData?.publicUrl) {
+    console.error('[WA:Media] uploadWaMediaFile missing public URL', { path, trustId });
     return { data: null, error: { message: 'Uploaded file but failed to generate public URL.' } };
   }
 
@@ -141,7 +144,8 @@ export async function createWaMedia(payload = {}) {
   };
 
   const { data, error } = await supabase.from(TABLE_NAME).insert([row]).select('*').single();
-  if (!error) invalidateCache('wa-media:');
+  if (error) console.error('[WA:Media] createWaMedia failed', { row, error });
+  else invalidateCache('wa-media:');
   return { data: data ? normalizeRow(data) : null, error };
 }
 
@@ -163,7 +167,8 @@ export async function updateWaMedia(mediaId, updates = {}, trustId = null) {
   if (trustId) query = query.eq('trust_id', trustId);
 
   const { data, error } = await query.select('*').single();
-  if (!error) invalidateCache('wa-media:');
+  if (error) console.error('[WA:Media] updateWaMedia failed', { mediaId, payload, error });
+  else invalidateCache('wa-media:');
   return { data: data ? normalizeRow(data) : null, error };
 }
 
@@ -207,6 +212,7 @@ export async function deleteWaMedia(mediaId, trustId = null, publicUrl = '') {
   if (trustId) query = query.eq('trust_id', trustId);
 
   const { error } = await query;
-  if (!error) invalidateCache('wa-media:');
+  if (error) console.error('[WA:Media] deleteWaMedia failed', { mediaId, error });
+  else invalidateCache('wa-media:');
   return { error };
 }

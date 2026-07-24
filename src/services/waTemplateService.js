@@ -15,13 +15,16 @@ export async function fetchWaTemplatesByTrust(trustId) {
     `wa-template:list:${trustId}`,
     async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/whatsapp-templates/${encodeURIComponent(trustId)}`);
+        const url = `${API_BASE}/api/whatsapp-templates/${encodeURIComponent(trustId)}`;
+        const response = await fetch(url);
         const json = await response.json().catch(() => ({}));
         if (!response.ok) {
+          console.error('[WA:Template] fetchWaTemplatesByTrust failed', { url, status: response.status, body: json });
           return { data: [], error: { message: json?.error || `Request failed (${response.status})` } };
         }
         return { data: json.data || [], error: null };
       } catch (err) {
+        console.error('[WA:Template] fetchWaTemplatesByTrust network error', { apiBase: API_BASE, err });
         return { data: [], error: { message: err.message || 'Unable to load templates.' } };
       }
     },
@@ -38,11 +41,13 @@ async function saveWaTemplateRequest(payload) {
     });
     const json = await response.json().catch(() => ({}));
     if (!response.ok) {
+      console.error('[WA:Template] saveWaTemplateRequest failed', { status: response.status, body: json, payload });
       return { data: null, error: { message: json?.error || `Request failed (${response.status})` } };
     }
     invalidateCache('wa-template:');
     return { data: json.data, error: null };
   } catch (err) {
+    console.error('[WA:Template] saveWaTemplateRequest network error', { apiBase: API_BASE, err, payload });
     return { data: null, error: { message: err.message || 'Unable to save template.' } };
   }
 }
@@ -96,9 +101,13 @@ export async function fetchWaTempColumns(templateId, trustId) {
       p_wa_temp_id: templateId,
       p_trust_id: trustId,
     });
-    if (error) return { data: null, error: { message: error.message || 'Unable to fetch template columns.' } };
+    if (error) {
+      console.error('[WA:Template] fetchWaTempColumns RPC error', { templateId, trustId, error });
+      return { data: null, error: { message: error.message || 'Unable to fetch template columns.' } };
+    }
     return { data, error: null };
   } catch (err) {
+    console.error('[WA:Template] fetchWaTempColumns threw', { templateId, trustId, err });
     return { data: null, error: { message: err.message || 'Unable to fetch template columns.' } };
   }
 }

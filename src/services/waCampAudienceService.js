@@ -37,6 +37,7 @@ export async function fetchWaCampAudienceByTrust(trustId) {
         .order('created_at', { ascending: false })
         .range(0, MAX_FETCH - 1);
 
+      if (error) console.error('[WA:Audience] fetchWaCampAudienceByTrust failed', { trustId, error });
       return { data: (data || []).map(normalizeRow), error };
     },
     12000
