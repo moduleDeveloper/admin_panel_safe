@@ -43,3 +43,32 @@ export async function fetchWaCampAudienceByTrust(trustId) {
     12000
   );
 }
+
+// RPC-backed variant — wa_camp_audience_view validates the campaign belongs
+// to the trust server-side and returns rows for that single campaign only,
+// so the caller must already know which WaCamp to look at.
+export async function fetchWaCampAudienceByCampaign(campId, trustId, { status = null, limit = MAX_FETCH, offset = 0 } = {}) {
+  if (!campId || !trustId) return { data: [], total: 0, error: null };
+
+  return cachedQuery(
+    `wa-camp-audience:rpc:${campId}:${status || 'all'}:${limit}:${offset}`,
+    async () => {
+      const { data, error } = await supabase.rpc('wa_camp_audience_view', {
+        p_wa_camp_id: campId,
+        p_trust_id: trustId,
+        p_status: status,
+        p_limit: limit,
+        p_offset: offset,
+      });
+
+      if (error) {
+        console.error('[WA:Audience] fetchWaCampAudienceByCampaign RPC failed', { campId, trustId, error });
+        return { data: [], total: 0, error };
+      }
+
+      const rows = Array.isArray(data?.rows) ? data.rows : [];
+      return { data: rows.map((row) => normalizeRow(row)), total: data?.total || 0, error: null };
+    },
+    12000
+  );
+}

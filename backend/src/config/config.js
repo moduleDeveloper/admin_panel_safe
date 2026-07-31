@@ -33,7 +33,7 @@ function required(key) {
 
 export const config = {
   port: Number(process.env.PORT || 8080),
-  corsOrigins: String(process.env.CORS_ORIGIN || 'http://localhost:5173,https://test-admin-panel-eight.vercel.app')
+  corsOrigins: String(process.env.CORS_ORIGIN || 'http://localhost:5173,https://admin-test.teiltd.in')
     .split(',')
     .map((value) => String(value || '').trim())
     .filter(Boolean),

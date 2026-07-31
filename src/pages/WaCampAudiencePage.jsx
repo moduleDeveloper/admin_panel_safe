@@ -1,8 +1,9 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import Sidebar from '../components/Sidebar';
-import { fetchWaCampAudienceByTrust } from '../services/waCampAudienceService';
+import { fetchWaCampAudienceByCampaign } from '../services/waCampAudienceService';
+import { fetchWaCampsByTrust } from '../services/waCampService';
 import Pagination, { PAGE_SIZE } from '../components/Pagination';
 import './NoticeboardPage.css';
 
@@ -28,6 +29,10 @@ function statusLabel(status) {
     .join(' ');
 }
 
+function statusPillClass(status) {
+  return `nb-status-pill nb-status-pill-${status || 'pending'}`;
+}
+
 function getInitials(value = '') {
   const safe = String(value || '').trim();
   if (!safe) return 'A';
@@ -41,6 +46,11 @@ export default function WaCampAudiencePage() {
   const currentSidebarNavKey = location.state?.sidebarNavKey || 'whatsapp';
   const trustId = trust?.id || null;
 
+  const [campaigns, setCampaigns] = useState([]);
+  const [campaignsLoading, setCampaignsLoading] = useState(true);
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [campaignMenuOpen, setCampaignMenuOpen] = useState(false);
+  const campaignPickerRef = useRef(null);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,23 +60,65 @@ export default function WaCampAudiencePage() {
   const [page, setPage] = useState(1);
   const deferredSearch = useDeferredValue(search);
 
+  // wa_camp_audience_view RPC only accepts a single campaign id, so we first
+  // need the trust's campaign list to let the user pick which one to view.
   useEffect(() => {
     if (!trustId) {
       navigate('/whatsapp', { replace: true, state: { userName, trust, sidebarNavKey: currentSidebarNavKey } });
       return;
     }
 
+    const loadCampaigns = async () => {
+      setCampaignsLoading(true);
+      const { data, error: fetchError } = await fetchWaCampsByTrust(trustId);
+      if (fetchError) setError(fetchError.message || 'Unable to load campaigns.');
+      const list = data || [];
+      setCampaigns(list);
+      setSelectedCampaignId((prev) => (prev && list.some((c) => c.id === prev) ? prev : list[0]?.id || ''));
+      setCampaignsLoading(false);
+    };
+
+    loadCampaigns();
+  }, [navigate, trustId, userName, trust, currentSidebarNavKey]);
+
+  const selectedCampaign = useMemo(
+    () => campaigns.find((c) => c.id === selectedCampaignId) || null,
+    [campaigns, selectedCampaignId]
+  );
+
+  useEffect(() => {
+    if (!campaignMenuOpen) return;
+    const handleClickOutside = (event) => {
+      if (campaignPickerRef.current && !campaignPickerRef.current.contains(event.target)) {
+        setCampaignMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [campaignMenuOpen]);
+
+  useEffect(() => {
+    if (!trustId || !selectedCampaignId) return;
+
     const load = async () => {
       setLoading(true);
       setError('');
-      const { data, error: fetchError } = await fetchWaCampAudienceByTrust(trustId);
+      const { data, error: fetchError } = await fetchWaCampAudienceByCampaign(selectedCampaignId, trustId);
       if (fetchError) setError(fetchError.message || 'Unable to load audience records.');
-      setRecords(data || []);
+      const withCampaign = (data || []).map((item) => ({
+        ...item,
+        camp_id: item.camp_id || selectedCampaignId,
+        campaign: selectedCampaign,
+        template: selectedCampaign?.template || null,
+      }));
+      setRecords(withCampaign);
       setLoading(false);
     };
 
     load();
-  }, [navigate, trustId, userName, trust, currentSidebarNavKey]);
+  }, [trustId, selectedCampaignId, selectedCampaign]);
+
+  const showLoading = campaignsLoading || (loading && !!selectedCampaignId);
 
   const statusCounts = useMemo(() => {
     return records.reduce((acc, item) => {
@@ -152,13 +204,78 @@ export default function WaCampAudiencePage() {
         <section className="nb-content">
           {error && <div className="nb-error">{error}</div>}
 
-          {loading && <div className="nb-empty">Loading audience records...</div>}
-
-          {!loading && records.length === 0 && (
-            <div className="nb-empty">No audience records found for this trust.</div>
+          {!campaignsLoading && campaigns.length === 0 && (
+            <div className="nb-empty">No campaigns found for this trust.</div>
           )}
 
-          {!loading && records.length > 0 && (
+          {campaigns.length > 0 && (
+            <div className="nb-campaign-picker" ref={campaignPickerRef}>
+              <span className="nb-campaign-picker-label">Campaign</span>
+              <button
+                type="button"
+                className="nb-campaign-trigger"
+                onClick={() => setCampaignMenuOpen((open) => !open)}
+                aria-expanded={campaignMenuOpen}
+              >
+                <div className="nb-campaign-trigger-main">
+                  <span className="nb-campaign-trigger-name">
+                    {selectedCampaign?.template?.name || 'Select a campaign'}
+                  </span>
+                  <span className="nb-campaign-trigger-meta">
+                    {selectedCampaign?.schedule_date || '-'} {selectedCampaign?.schedule_time || ''}
+                  </span>
+                </div>
+                {selectedCampaign && (
+                  <span className={statusPillClass(selectedCampaign.status)}>
+                    {statusLabel(selectedCampaign.status)}
+                  </span>
+                )}
+                <svg
+                  className={`nb-campaign-chevron ${campaignMenuOpen ? 'open' : ''}`}
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              {campaignMenuOpen && (
+                <div className="nb-campaign-menu" role="listbox">
+                  {campaigns.map((camp) => (
+                    <button
+                      key={camp.id}
+                      type="button"
+                      role="option"
+                      aria-selected={camp.id === selectedCampaignId}
+                      className={`nb-campaign-option ${camp.id === selectedCampaignId ? 'active' : ''}`}
+                      onClick={() => {
+                        setSelectedCampaignId(camp.id);
+                        setCampaignMenuOpen(false);
+                      }}
+                    >
+                      <div className="nb-campaign-option-main">
+                        <span className="nb-campaign-option-name">{camp.template?.name || 'Untitled template'}</span>
+                        <span className="nb-campaign-option-meta">
+                          {camp.schedule_date || '-'} {camp.schedule_time || ''}
+                        </span>
+                      </div>
+                      <span className={statusPillClass(camp.status)}>{statusLabel(camp.status)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {showLoading && <div className="nb-empty">Loading audience records...</div>}
+
+          {!showLoading && campaigns.length > 0 && records.length === 0 && (
+            <div className="nb-empty">No audience records found for this campaign.</div>
+          )}
+
+          {!showLoading && records.length > 0 && (
             <section className="nb-profile-layout">
               <aside className="nb-left-panel">
                 <div className="nb-left-head">
@@ -246,7 +363,12 @@ export default function WaCampAudiencePage() {
                       </div>
                       <div className="nb-profile-detail-grid">
                         <div><span>Template</span><strong>{selectedRecord.template?.name || '-'}</strong></div>
-                        <div><span>Status</span><strong>{statusLabel(selectedRecord.status)}</strong></div>
+                        <div>
+                          <span>Status</span>
+                          <strong>
+                            <span className={statusPillClass(selectedRecord.status)}>{statusLabel(selectedRecord.status)}</span>
+                          </strong>
+                        </div>
                         <div><span>Provider Message Id</span><strong>{selectedRecord.provider_message_id || '-'}</strong></div>
                         <div><span>Scheduled At</span><strong>{formatDateTime(selectedRecord.schedule_date_time)}</strong></div>
                         <div><span>Sent At</span><strong>{formatDateTime(selectedRecord.sent_at)}</strong></div>
