@@ -72,7 +72,43 @@ function languageLabel(value = '') {
 }
 
 function createEmptyVar() {
-  return { var_key: '', display_label: '', source_table: '', source_column: '', fallback_value: '' };
+  return { var_key: '', display_label: '' };
+}
+
+function extractTemplateVarKeys(text = '') {
+  const keys = [];
+  const seen = new Set();
+  const pattern = /\{\{\s*([^{}]+?)\s*\}\}/g;
+  const source = String(text || '');
+
+  for (const match of source.matchAll(pattern)) {
+    const key = String(match?.[1] || '').trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    keys.push(key);
+  }
+
+  return keys;
+}
+
+function syncVariablesFromText(text, currentVariables = []) {
+  const keys = extractTemplateVarKeys(text);
+  if (!keys.length) return [createEmptyVar()];
+
+  const existingByKey = new Map(
+    (Array.isArray(currentVariables) ? currentVariables : []).map((row) => [String(row?.var_key || '').trim(), row])
+  );
+
+  return keys.map((key) => {
+    const existing = existingByKey.get(key);
+    if (!existing) return { var_key: key, display_label: '' };
+    return {
+      ...createEmptyVar(),
+      ...existing,
+      var_key: key,
+      display_label: String(existing.display_label || ''),
+    };
+  });
 }
 
 const EMPTY_FORM = {
@@ -285,6 +321,11 @@ export default function WhatsappTemplatePage() {
 
   const updateVarRow = (index, field, value) => {
     setVariables((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+  };
+
+  const handleTextChange = (value) => {
+    setForm((prev) => ({ ...prev, text: value }));
+    setVariables((prev) => syncVariablesFromText(value, prev));
   };
 
   const handleSave = async () => {
@@ -514,7 +555,7 @@ export default function WhatsappTemplatePage() {
                           <option value="__add_new__">+ Add Service Provider</option>
                           {activeServices.map((service) => (
                             <option key={service.id} value={service.id}>
-                              {service.name} ({service.provider})
+                              {service.provider}
                             </option>
                           ))}
                         </select>
@@ -589,8 +630,8 @@ export default function WhatsappTemplatePage() {
                       <textarea
                         rows="4"
                         value={form.text}
-                        onChange={(e) => setForm((prev) => ({ ...prev, text: e.target.value }))}
-                        placeholder="Enter template message, use {{1}}, {{2}} for variables"
+                        onChange={(e) => handleTextChange(e.target.value)}
+                        placeholder="Enter template message, use {{body_1}}, {{body_2}} for variables"
                       />
                     </label>
                     <label className="nb-checkbox-field">
@@ -716,43 +757,22 @@ export default function WhatsappTemplatePage() {
                         />
                       </label>
                       <label>
-                        <span>Display Label</span>
-                        <input
-                          value={row.display_label}
-                          onChange={(e) => updateVarRow(index, 'display_label', e.target.value)}
-                          placeholder="e.g. Member Name"
-                        />
-                      </label>
-                      <label>
-                        <span>Source Table</span>
-                        <input
-                          value={row.source_table}
-                          onChange={(e) => updateVarRow(index, 'source_table', e.target.value)}
-                          placeholder="e.g. members"
-                        />
-                      </label>
-                      <label>
-                        <span>Source Column</span>
-                        <input
-                          value={row.source_column}
-                          onChange={(e) => updateVarRow(index, 'source_column', e.target.value)}
-                          placeholder="e.g. name"
-                        />
-                      </label>
-                      <label className="nb-span-2">
-                        <span>Fallback Value</span>
+                        <span>Field Name</span>
                         <div className="nb-input-with-actions">
                           <input
-                            value={row.fallback_value}
-                            onChange={(e) => updateVarRow(index, 'fallback_value', e.target.value)}
-                            placeholder="Value used when source is empty"
+                            value={row.display_label}
+                            onChange={(e) => updateVarRow(index, 'display_label', e.target.value)}
+                            placeholder="e.g. Member Name"
                           />
                           <button
                             type="button"
                             className="nb-input-action-btn"
+                            title="Remove variable"
+                            aria-label="Remove variable"
                             onClick={() => setVariables((prev) => prev.filter((_, i) => i !== index))}
+                            style={{ width: 40, minWidth: 40, padding: 10 }}
                           >
-                            Remove
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M9 3.75C9 3.33579 9.33579 3 9.75 3H14.25C14.6642 3 15 3.33579 15 3.75V4.5H20.25C20.6642 4.5 21 4.83579 21 5.25C21 5.66421 20.6642 6 20.25 6H19.2826L18.4824 18.1433C18.3873 19.5868 17.1904 20.7 15.7438 20.7H8.25617C6.80964 20.7 5.61266 19.5868 5.51763 18.1433L4.71736 6H3.75C3.33579 6 3 5.66421 3 5.25C3 4.83579 3.33579 4.5 3.75 4.5H9V3.75ZM10.5 4.5H13.5V4.125H10.5V4.5ZM6.22365 6L6.99946 17.9944C7.04534 18.7037 7.63233 19.25 8.34307 19.25H15.6569C16.3677 19.25 16.9547 18.7037 17.0005 17.9944L17.7763 6H6.22365ZM9.75 8.25C10.1642 8.25 10.5 8.58579 10.5 9V15C10.5 15.4142 10.1642 15.75 9.75 15.75C9.33579 15.75 9 15.4142 9 15V9C9 8.58579 9.33579 8.25 9.75 8.25ZM14.25 8.25C14.6642 8.25 15 8.58579 15 9V15C15 15.4142 14.6642 15.75 14.25 15.75C13.8358 15.75 13.5 15.4142 13.5 15V9C13.5 8.58579 13.8358 8.25 14.25 8.25Z" fill="currentColor"/></svg>
                           </button>
                         </div>
                       </label>
@@ -943,10 +963,6 @@ export default function WhatsappTemplatePage() {
                               <div key={v.id} className="nb-left-item" style={{ cursor: 'default' }}>
                                 <div className="nb-left-item-body">
                                   <div className="nb-left-item-title">{v.var_key} {v.display_label ? `— ${v.display_label}` : ''}</div>
-                                  <div className="nb-left-item-sub">
-                                    {v.source_table && v.source_column ? `${v.source_table}.${v.source_column}` : 'No source'}
-                                    {v.fallback_value ? ` (fallback: ${v.fallback_value})` : ''}
-                                  </div>
                                 </div>
                               </div>
                             ))}

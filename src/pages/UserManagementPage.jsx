@@ -171,6 +171,24 @@ export default function UserManagementPage() {
     [permissionRows],
   );
 
+  const permissionColumnStates = useMemo(() => {
+    const total = permissionRows.length || 0;
+    const getState = (key) => {
+      const checkedCount = permissionRows.reduce((count, row) => count + (row[key] ? 1 : 0), 0);
+      return {
+        allChecked: total > 0 && checkedCount === total,
+        someChecked: checkedCount > 0 && checkedCount < total,
+      };
+    };
+
+    return {
+      can_view: getState('can_view'),
+      can_add: getState('can_add'),
+      can_edit: getState('can_edit'),
+      can_delete: getState('can_delete'),
+    };
+  }, [permissionRows]);
+
   function startCreateMode(openEditor = true) {
     setIsEditorVisible(openEditor);
     setSelectedUserId(null);
@@ -186,6 +204,15 @@ export default function UserManagementPage() {
           ? { ...row, [key]: !row[key] }
           : row,
       ),
+    );
+  }
+
+  function handleColumnToggle(key, checked) {
+    setPermissionRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        [key]: checked,
+      })),
     );
   }
 
@@ -427,10 +454,58 @@ export default function UserManagementPage() {
                       <thead>
                         <tr>
                           <th>Feature</th>
-                          <th>View</th>
-                          <th>Add</th>
-                          <th>Edit</th>
-                          <th>Delete</th>
+                          <th>
+                            <label className="um-header-checkbox">
+                              <input
+                                type="checkbox"
+                                checked={permissionColumnStates.can_view.allChecked}
+                                ref={(input) => {
+                                  if (input) input.indeterminate = permissionColumnStates.can_view.someChecked;
+                                }}
+                                onChange={(event) => handleColumnToggle('can_view', event.target.checked)}
+                              />
+                              <span>View</span>
+                            </label>
+                          </th>
+                          <th>
+                            <label className="um-header-checkbox">
+                              <input
+                                type="checkbox"
+                                checked={permissionColumnStates.can_add.allChecked}
+                                ref={(input) => {
+                                  if (input) input.indeterminate = permissionColumnStates.can_add.someChecked;
+                                }}
+                                onChange={(event) => handleColumnToggle('can_add', event.target.checked)}
+                              />
+                              <span>Add</span>
+                            </label>
+                          </th>
+                          <th>
+                            <label className="um-header-checkbox">
+                              <input
+                                type="checkbox"
+                                checked={permissionColumnStates.can_edit.allChecked}
+                                ref={(input) => {
+                                  if (input) input.indeterminate = permissionColumnStates.can_edit.someChecked;
+                                }}
+                                onChange={(event) => handleColumnToggle('can_edit', event.target.checked)}
+                              />
+                              <span>Edit</span>
+                            </label>
+                          </th>
+                          <th>
+                            <label className="um-header-checkbox">
+                              <input
+                                type="checkbox"
+                                checked={permissionColumnStates.can_delete.allChecked}
+                                ref={(input) => {
+                                  if (input) input.indeterminate = permissionColumnStates.can_delete.someChecked;
+                                }}
+                                onChange={(event) => handleColumnToggle('can_delete', event.target.checked)}
+                              />
+                              <span>Delete</span>
+                            </label>
+                          </th>
                         </tr>
                       </thead>
                       <tbody>

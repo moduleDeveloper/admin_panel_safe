@@ -141,19 +141,6 @@ const navItems = [
     ),
   },
   {
-    id: 'nav-product',
-    label: 'Product',
-    route: '/social-media/product',
-    navKey: 'social-media',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M3 7.5L12 3l9 4.5-9 4.5L3 7.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M3 7.5V16.5L12 21l9-4.5V7.5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M12 12v9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
     id: 'nav-whatsapp',
     label: 'Whatsapp',
     route: '/whatsapp',

@@ -8,6 +8,52 @@ function normalizeApiBase(rawBase) {
 
 const API_BASE = normalizeApiBase(import.meta.env.VITE_VIDEO_BACKEND_URL);
 
+async function requestJson(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: options.method || 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return {
+      data: null,
+      error: {
+        message: data?.error || `Request failed (${response.status})`,
+        debug: data?.debug || null,
+      },
+    };
+  }
+
+  return { data, error: null };
+}
+
+function buildTemplateRequestPayload(payload = {}, variables = [], templateId = null) {
+  return {
+    trustId: payload.trust_id || null,
+    templateId: templateId || null,
+    waServiceId: payload.wa_service_id || null,
+    waMediaId: payload.wa_media_id || null,
+    name: String(payload.name || '').trim(),
+    language: String(payload.language || 'en').trim() || 'en',
+    text: String(payload.text || '').trim(),
+    type: payload.type !== undefined ? String(payload.type || '').trim() : undefined,
+    purpose: payload.purpose !== undefined ? String(payload.purpose || '').trim() : undefined,
+    footer: payload.footer !== undefined ? String(payload.footer || '').trim() : undefined,
+    approved: payload.approved === true,
+    variables: (Array.isArray(variables) ? variables : [])
+      .filter((v) => String(v?.var_key || '').trim())
+      .map((v) => ({
+        var_key: String(v.var_key || '').trim(),
+        display_label: String(v.display_label || '').trim() || null,
+      })),
+  };
+}
+
 export async function fetchWaTemplatesByTrust(trustId) {
   if (!trustId) return { data: [], error: null };
 
@@ -15,16 +61,15 @@ export async function fetchWaTemplatesByTrust(trustId) {
     `wa-template:list:${trustId}`,
     async () => {
       try {
-        const url = `${API_BASE}/api/whatsapp-templates/${encodeURIComponent(trustId)}`;
-        const response = await fetch(url);
-        const json = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          console.error('[WA:Template] fetchWaTemplatesByTrust failed', { url, status: response.status, body: json });
-          return { data: [], error: { message: json?.error || `Request failed (${response.status})` } };
+        const { data, error } = await requestJson(`/api/whatsapp-templates/${encodeURIComponent(trustId)}`);
+        if (error) {
+          console.error('[WA:Template] fetchWaTemplatesByTrust API error', { trustId, error });
+          return { data: [], error: { message: error.message || 'Unable to load templates.' } };
         }
-        return { data: json.data || [], error: null };
+        const rows = Array.isArray(data?.data) ? data.data : [];
+        return { data: rows, error: null };
       } catch (err) {
-        console.error('[WA:Template] fetchWaTemplatesByTrust network error', { apiBase: API_BASE, err });
+        console.error('[WA:Template] fetchWaTemplatesByTrust threw', { trustId, err });
         return { data: [], error: { message: err.message || 'Unable to load templates.' } };
       }
     },
@@ -32,62 +77,41 @@ export async function fetchWaTemplatesByTrust(trustId) {
   );
 }
 
-async function saveWaTemplateRequest(payload) {
-  try {
-    const response = await fetch(`${API_BASE}/api/whatsapp-templates`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const json = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      console.error('[WA:Template] saveWaTemplateRequest failed', { status: response.status, body: json, payload });
-      return { data: null, error: { message: json?.error || `Request failed (${response.status})` } };
-    }
-    invalidateCache('wa-template:');
-    return { data: json.data, error: null };
-  } catch (err) {
-    console.error('[WA:Template] saveWaTemplateRequest network error', { apiBase: API_BASE, err, payload });
-    return { data: null, error: { message: err.message || 'Unable to save template.' } };
-  }
-}
-
 export async function createWaTemplate(payload = {}, variables = []) {
   if (!payload.trust_id) return { data: null, error: { message: 'No trust id provided.' } };
   if (!payload.wa_service_id) return { data: null, error: { message: 'Service provider is required.' } };
 
-  return saveWaTemplateRequest({
-    trustId: payload.trust_id,
-    waServiceId: payload.wa_service_id,
-    waMediaId: payload.wa_media_id || null,
-    name: payload.name,
-    language: payload.language,
-    text: payload.text,
-    type: payload.type,
-    purpose: payload.purpose,
-    footer: payload.footer,
-    approved: payload.approved,
-    variables,
-  });
+  try {
+    const { data, error } = await requestJson('/api/whatsapp-templates', {
+      method: 'POST',
+      body: buildTemplateRequestPayload(payload, variables, null),
+    });
+    if (error) {
+      return { data: null, error: { message: error.message || 'Unable to save template.' } };
+    }
+    invalidateCache('wa-template:');
+    return { data: data?.data || null, error: null };
+  } catch (err) {
+    return { data: null, error: { message: err.message || 'Unable to save template.' } };
+  }
 }
 
 export async function updateWaTemplate(templateId, updates = {}, variables = [], trustId = null) {
   if (!templateId) return { data: null, error: { message: 'No template id provided.' } };
 
-  return saveWaTemplateRequest({
-    templateId,
-    trustId,
-    ...(updates.wa_service_id !== undefined ? { waServiceId: updates.wa_service_id } : {}),
-    ...(updates.wa_media_id !== undefined ? { waMediaId: updates.wa_media_id } : {}),
-    ...(updates.name !== undefined ? { name: updates.name } : {}),
-    ...(updates.language !== undefined ? { language: updates.language } : {}),
-    ...(updates.text !== undefined ? { text: updates.text } : {}),
-    ...(updates.type !== undefined ? { type: updates.type } : {}),
-    ...(updates.purpose !== undefined ? { purpose: updates.purpose } : {}),
-    ...(updates.footer !== undefined ? { footer: updates.footer } : {}),
-    ...(updates.approved !== undefined ? { approved: updates.approved } : {}),
-    variables,
-  });
+  try {
+    const { data, error } = await requestJson('/api/whatsapp-templates', {
+      method: 'POST',
+      body: buildTemplateRequestPayload({ ...updates, trust_id: trustId }, variables, templateId),
+    });
+    if (error) {
+      return { data: null, error: { message: error.message || 'Unable to update template.' } };
+    }
+    invalidateCache('wa-template:');
+    return { data: data?.data || null, error: null };
+  } catch (err) {
+    return { data: null, error: { message: err.message || 'Unable to update template.' } };
+  }
 }
 
 // Reads the recipient-sheet column names (phone, contact_name, template variables)

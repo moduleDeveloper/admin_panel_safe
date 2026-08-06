@@ -106,9 +106,9 @@ export async function saveWaTemplateHandler(req, res) {
       ...(templateId ? { id: templateId } : {}),
       ...(name !== undefined ? { name: String(name || '').trim() } : {}),
       ...(language !== undefined ? { language: String(language || 'en').trim() || 'en' } : {}),
-      ...(text !== undefined ? { text: String(text || '').trim() || null } : {}),
-      ...(purpose !== undefined ? { purpose: String(purpose || '').trim() || null } : {}),
-      ...(footer !== undefined ? { footer: String(footer || '').trim() || null } : {}),
+      ...(text !== undefined ? { text: String(text || '').trim() } : {}),
+      ...(purpose !== undefined ? { purpose: String(purpose || '').trim() } : {}),
+      ...(footer !== undefined ? { footer: String(footer || '').trim() } : {}),
       ...(waServiceId !== undefined ? { wa_service_id: waServiceId || null } : {}),
       ...(waMediaId !== undefined ? { wa_media_id: waMediaId || null } : {}),
     };
@@ -162,7 +162,10 @@ export async function saveWaTemplateHandler(req, res) {
 
     const followUpUpdate = {};
     if (variables !== undefined) followUpUpdate.var_count = cleanVariables.length;
-    if (type !== undefined) followUpUpdate.type = String(type || '').trim() || null;
+    if (text !== undefined) followUpUpdate.text = String(text || '').trim();
+    if (purpose !== undefined) followUpUpdate.purpose = String(purpose || '').trim();
+    if (footer !== undefined) followUpUpdate.footer = String(footer || '').trim();
+    if (type !== undefined) followUpUpdate.type = String(type || '').trim();
     if (approved !== undefined) followUpUpdate.approved = approved === true;
 
     if (Object.keys(followUpUpdate).length) {

@@ -1,10 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { cachedQuery, invalidateCache } from './requestCache';
 
-const TABLE_NAME = 'WaCamp';
-const TEMPLATE_EMBED = 'WaTemp(id, name, trust_id, language, type, var_count)';
-const MAX_FETCH = 200;
-
 // New rows (created via wa_camp_curi) only have a combined `scheduled_at`
 // column — split it into date/time strings so the existing UI keeps working.
 function splitScheduledAt(scheduledAt) {
@@ -23,7 +19,7 @@ function normalizeRow(row = {}) {
   return {
     id: row.id,
     template_id: row.template_id || null,
-    template: row.WaTemp || null,
+    template: row.template || row.WaTemp || row.wa_temp || null,
     schedule_date: row.schedule_date || derived.date,
     schedule_time: row.schedule_time || derived.time,
     sender_list: Array.isArray(row.sender_list) ? row.sender_list : [],
@@ -34,14 +30,56 @@ function normalizeRow(row = {}) {
   };
 }
 
-async function fetchWaCampById(id) {
-  const { data, error } = await supabase
-    .from(TABLE_NAME)
-    .select(`*, ${TEMPLATE_EMBED}`)
-    .eq('id', id)
-    .single();
-  if (error) console.error('[WA:Campaign] fetchWaCampById failed', { id, error });
-  return { data: data ? normalizeRow(data) : null, error };
+function unwrapRows(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.rows)) return data.rows;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+}
+
+function unwrapRow(data) {
+  if (Array.isArray(data)) return data[0] || null;
+  if (Array.isArray(data?.rows)) return data.rows[0] || null;
+  if (Array.isArray(data?.data)) return data.data[0] || null;
+  if (data?.data && typeof data.data === 'object' && data.data.id) return data.data;
+  if (data?.row && typeof data.row === 'object' && data.row.id) return data.row;
+  if (data && typeof data === 'object' && data.id) return data;
+  return null;
+}
+
+function buildCampPayload(payload = {}) {
+  return {
+    ...(payload.template_id !== undefined ? { p_template_id: payload.template_id || null } : {}),
+    ...(payload.schedule_date !== undefined ? { p_schedule_date: payload.schedule_date || null } : {}),
+    ...(payload.schedule_time !== undefined ? { p_schedule_time: payload.schedule_time || null } : {}),
+    ...(payload.sender_list !== undefined
+      ? { p_sender_list: Array.isArray(payload.sender_list) ? payload.sender_list : [] }
+      : {}),
+    ...(payload.status !== undefined ? { p_status: String(payload.status || 'pending').trim() || 'pending' } : {}),
+  };
+}
+
+async function manageWaCampRpc(params) {
+  const { data, error } = await supabase.rpc('manage_wa_camp', params);
+  return { data, error };
+}
+
+async function fetchWaCampById(id, trustId) {
+  if (!id || !trustId) return { data: null, error: { message: 'No campaign id provided.' } };
+
+  const { data, error } = await manageWaCampRpc({
+    p_action: 'get',
+    p_trust_id: trustId,
+    p_id: id,
+  });
+  if (error) {
+    console.error('[WA:Campaign] fetchWaCampById RPC failed', { id, trustId, error });
+    return { data: null, error };
+  }
+
+  const row = unwrapRow(data);
+  if (!row) return { data: null, error: { message: 'Campaign not found.' } };
+  return { data: normalizeRow(row), error: null };
 }
 
 export async function fetchWaCampsByTrust(trustId) {
@@ -50,15 +88,17 @@ export async function fetchWaCampsByTrust(trustId) {
   return cachedQuery(
     `wa-camp:list:${trustId}`,
     async () => {
-      const { data, error } = await supabase
-        .from(TABLE_NAME)
-        .select(`*, WaTemp!inner(id, name, trust_id, language, type, var_count)`)
-        .eq('WaTemp.trust_id', trustId)
-        .order('created_at', { ascending: false })
-        .range(0, MAX_FETCH - 1);
+      const { data, error } = await manageWaCampRpc({
+        p_action: 'list',
+        p_trust_id: trustId,
+      });
 
-      if (error) console.error('[WA:Campaign] fetchWaCampsByTrust failed', { trustId, error });
-      return { data: (data || []).map(normalizeRow), error };
+      if (error) {
+        console.error('[WA:Campaign] fetchWaCampsByTrust RPC failed', { trustId, error });
+        return { data: [], error };
+      }
+
+      return { data: unwrapRows(data).map((row) => normalizeRow(row)), error: null };
     },
     12000
   );
@@ -68,47 +108,44 @@ export async function createWaCamp(payload = {}) {
   if (!payload.template_id) return { data: null, error: { message: 'Template is required.' } };
   if (!payload.schedule_date) return { data: null, error: { message: 'Schedule date is required.' } };
   if (!payload.schedule_time) return { data: null, error: { message: 'Schedule time is required.' } };
+  if (!payload.trust_id) return { data: null, error: { message: 'No trust id provided.' } };
 
-  const row = {
-    template_id: payload.template_id,
-    schedule_date: payload.schedule_date,
-    schedule_time: payload.schedule_time,
-    sender_list: Array.isArray(payload.sender_list) ? payload.sender_list : [],
-    status: String(payload.status || 'pending').trim() || 'pending',
-  };
-
-  const { data, error } = await supabase.from(TABLE_NAME).insert([row]).select('id').single();
+  const { data, error } = await manageWaCampRpc({
+    p_action: 'insert',
+    p_trust_id: payload.trust_id,
+    ...buildCampPayload(payload),
+  });
   if (error) {
-    console.error('[WA:Campaign] createWaCamp failed', { payload, error });
+    console.error('[WA:Campaign] createWaCamp RPC failed', { payload, error });
     return { data: null, error };
   }
 
   invalidateCache('wa-camp:');
-  return fetchWaCampById(data.id);
+  const row = unwrapRow(data);
+  if (row) return { data: normalizeRow(row), error: null };
+  return fetchWaCampById(data?.data?.id || data?.id || null, payload.trust_id);
 }
 
-export async function updateWaCamp(campId, updates = {}) {
+export async function updateWaCamp(campId, updates = {}, trustId = null) {
   if (!campId) return { data: null, error: { message: 'No campaign id provided.' } };
+  if (!trustId) return { data: null, error: { message: 'No trust id provided.' } };
 
-  const payload = {
-    ...(updates.template_id !== undefined ? { template_id: updates.template_id } : {}),
-    ...(updates.schedule_date !== undefined ? { schedule_date: updates.schedule_date } : {}),
-    ...(updates.schedule_time !== undefined ? { schedule_time: updates.schedule_time } : {}),
-    ...(updates.sender_list !== undefined
-      ? { sender_list: Array.isArray(updates.sender_list) ? updates.sender_list : [] }
-      : {}),
-    ...(updates.status !== undefined ? { status: String(updates.status || 'pending').trim() || 'pending' } : {}),
-    updated_at: new Date().toISOString(),
-  };
+  const { data, error } = await manageWaCampRpc({
+    p_action: 'update',
+    p_trust_id: trustId,
+    p_id: campId,
+    ...buildCampPayload(updates),
+  });
 
-  const { error: updateError } = await supabase.from(TABLE_NAME).update(payload).eq('id', campId).select('id').single();
-  if (updateError) {
-    console.error('[WA:Campaign] updateWaCamp failed', { campId, payload, error: updateError });
-    return { data: null, error: updateError };
+  if (error) {
+    console.error('[WA:Campaign] updateWaCamp RPC failed', { campId, trustId, updates, error });
+    return { data: null, error };
   }
 
   invalidateCache('wa-camp:');
-  return fetchWaCampById(campId);
+  const row = unwrapRow(data);
+  if (row) return { data: normalizeRow(row), error: null };
+  return fetchWaCampById(campId, trustId);
 }
 
 // Sends the raw uploaded rows straight to wa_camp_curi — it validates the
@@ -141,11 +178,15 @@ export async function submitWaCampaign({ trustId, templateId, rows, scheduledAt 
   return { data, error: null };
 }
 
-export async function deleteWaCamp(campId) {
+export async function deleteWaCamp(campId, trustId = null) {
   if (!campId) return { error: { message: 'No campaign id provided.' } };
 
-  const { error } = await supabase.from(TABLE_NAME).delete().eq('id', campId);
-  if (error) console.error('[WA:Campaign] deleteWaCamp failed', { campId, error });
+  const { error } = await manageWaCampRpc({
+    p_action: 'delete',
+    p_trust_id: trustId,
+    p_id: campId,
+  });
+  if (error) console.error('[WA:Campaign] deleteWaCamp RPC failed', { campId, error });
   else invalidateCache('wa-camp:');
   return { error };
 }

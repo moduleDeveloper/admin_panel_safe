@@ -76,9 +76,7 @@ const WHATSAPP_MODULES = [
   },
 ];
 
-const WHATSAPP_MODULES_ORDERED = [...WHATSAPP_MODULES].sort(
-  (a, b) => Boolean(a.disabled) - Boolean(b.disabled)
-);
+const WHATSAPP_MODULES_ORDERED = WHATSAPP_MODULES.filter((module) => !module.disabled);
 
 export default function WhatsappPage() {
   const navigate = useNavigate();
