@@ -46,6 +46,11 @@ const WHATSAPP_MODULES = [
   },
 ];
 
+<<<<<<< HEAD
+=======
+const WHATSAPP_MODULES_ORDERED = WHATSAPP_MODULES.filter((module) => !module.disabled);
+
+>>>>>>> 5b70b4f (Whatsapp wired with API)
 export default function WhatsappPage() {
   const navigate = useNavigate();
   const location = useLocation();

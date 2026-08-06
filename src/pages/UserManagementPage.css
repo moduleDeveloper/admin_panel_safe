@@ -232,6 +232,18 @@
   background: #f8f9ff;
 }
 
+.um-header-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.um-header-checkbox span {
+  line-height: 1;
+}
+
 .um-role-table td:not(:first-child) {
   text-align: center;
 }

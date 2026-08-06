@@ -39,12 +39,59 @@ function normalizeRow(row = {}) {
   };
 }
 
+async function requestJson(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: options.method || 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return {
+      data: null,
+      error: {
+        message: data?.error || `Request failed (${response.status})`,
+        debug: data?.debug || null,
+      },
+    };
+  }
+
+  return { data, error: null };
+}
+
+function buildTemplateRequestPayload(payload = {}, variables = [], templateId = null) {
+  return {
+    trustId: payload.trust_id || null,
+    templateId: templateId || null,
+    waServiceId: payload.wa_service_id || null,
+    waMediaId: payload.wa_media_id || null,
+    name: String(payload.name || '').trim(),
+    language: String(payload.language || 'en').trim() || 'en',
+    text: String(payload.text || '').trim(),
+    type: payload.type !== undefined ? String(payload.type || '').trim() : undefined,
+    purpose: payload.purpose !== undefined ? String(payload.purpose || '').trim() : undefined,
+    footer: payload.footer !== undefined ? String(payload.footer || '').trim() : undefined,
+    approved: payload.approved === true,
+    variables: (Array.isArray(variables) ? variables : [])
+      .filter((v) => String(v?.var_key || '').trim())
+      .map((v) => ({
+        var_key: String(v.var_key || '').trim(),
+        display_label: String(v.display_label || '').trim() || null,
+      })),
+  };
+}
+
 export async function fetchWaTemplatesByTrust(trustId) {
   if (!trustId) return { data: [], error: null };
 
   return cachedQuery(
     `wa-template:list:${trustId}`,
     async () => {
+<<<<<<< HEAD
       const { data, error } = await supabase
         .from(TABLE_NAME)
         .select('*, WaService(id, name, provider, purpose, is_active), WaTempVar(*)')
@@ -53,6 +100,20 @@ export async function fetchWaTemplatesByTrust(trustId) {
         .range(0, MAX_FETCH - 1);
 
       return { data: (data || []).map(normalizeRow), error };
+=======
+      try {
+        const { data, error } = await requestJson(`/api/whatsapp-templates/${encodeURIComponent(trustId)}`);
+        if (error) {
+          console.error('[WA:Template] fetchWaTemplatesByTrust API error', { trustId, error });
+          return { data: [], error: { message: error.message || 'Unable to load templates.' } };
+        }
+        const rows = Array.isArray(data?.data) ? data.data : [];
+        return { data: rows, error: null };
+      } catch (err) {
+        console.error('[WA:Template] fetchWaTemplatesByTrust threw', { trustId, err });
+        return { data: [], error: { message: err.message || 'Unable to load templates.' } };
+      }
+>>>>>>> 5b70b4f (Whatsapp wired with API)
     },
     12000
   );
@@ -62,6 +123,7 @@ export async function createWaTemplate(payload = {}, variables = []) {
   if (!payload.trust_id) return { data: null, error: { message: 'No trust id provided.' } };
   if (!payload.wa_service_id) return { data: null, error: { message: 'Service provider is required.' } };
 
+<<<<<<< HEAD
   const row = {
     trust_id: payload.trust_id,
     wa_service_id: payload.wa_service_id,
@@ -106,11 +168,27 @@ async function fetchWaTemplateById(id) {
     .eq('id', id)
     .single();
   return { data: data ? normalizeRow(data) : null, error };
+=======
+  try {
+    const { data, error } = await requestJson('/api/whatsapp-templates', {
+      method: 'POST',
+      body: buildTemplateRequestPayload(payload, variables, null),
+    });
+    if (error) {
+      return { data: null, error: { message: error.message || 'Unable to save template.' } };
+    }
+    invalidateCache('wa-template:');
+    return { data: data?.data || null, error: null };
+  } catch (err) {
+    return { data: null, error: { message: err.message || 'Unable to save template.' } };
+  }
+>>>>>>> 5b70b4f (Whatsapp wired with API)
 }
 
 export async function updateWaTemplate(templateId, updates = {}, variables = [], trustId = null) {
   if (!templateId) return { data: null, error: { message: 'No template id provided.' } };
 
+<<<<<<< HEAD
   const payload = {
     ...(updates.wa_service_id !== undefined ? { wa_service_id: updates.wa_service_id } : {}),
     ...(updates.name !== undefined ? { name: String(updates.name || '').trim() } : {}),
@@ -123,6 +201,22 @@ export async function updateWaTemplate(templateId, updates = {}, variables = [],
     var_count: Array.isArray(variables) ? variables.filter((v) => String(v.var_key || '').trim()).length : 0,
     updated_at: new Date().toISOString(),
   };
+=======
+  try {
+    const { data, error } = await requestJson('/api/whatsapp-templates', {
+      method: 'POST',
+      body: buildTemplateRequestPayload({ ...updates, trust_id: trustId }, variables, templateId),
+    });
+    if (error) {
+      return { data: null, error: { message: error.message || 'Unable to update template.' } };
+    }
+    invalidateCache('wa-template:');
+    return { data: data?.data || null, error: null };
+  } catch (err) {
+    return { data: null, error: { message: err.message || 'Unable to update template.' } };
+  }
+}
+>>>>>>> 5b70b4f (Whatsapp wired with API)
 
   let query = supabase.from(TABLE_NAME).update(payload).eq('id', templateId);
   if (trustId) query = query.eq('trust_id', trustId);

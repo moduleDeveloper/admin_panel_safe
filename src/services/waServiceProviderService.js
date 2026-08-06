@@ -1,13 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { cachedQuery, invalidateCache } from './requestCache';
 
-const TABLE_NAME = 'WaService';
-const MAX_FETCH = 200;
-
 function normalizeRow(row = {}) {
   return {
     id: row.id,
-    trust_id: row.trust_id || null,
+    trust_id: row.trust_id || row.p_trust_id || null,
     provider: row.provider || '',
     purpose: row.purpose || '',
     name: row.name || '',
@@ -28,6 +25,7 @@ export async function fetchWaServicesByTrust(trustId) {
   return cachedQuery(
     `wa-service:list:${trustId}`,
     async () => {
+<<<<<<< HEAD
       const { data, error } = await supabase
         .from(TABLE_NAME)
         .select('*')
@@ -36,6 +34,18 @@ export async function fetchWaServicesByTrust(trustId) {
         .range(0, MAX_FETCH - 1);
 
       return { data: (data || []).map(normalizeRow), error };
+=======
+      const { data, error } = await supabase.rpc('manage_wa_service', {
+        p_action: 'get',
+        p_trust_id: trustId,
+      });
+      if (error) {
+        console.error('[WA:ServiceProvider] fetchWaServicesByTrust RPC failed', { trustId, error });
+        return { data: [], error };
+      }
+      const rows = Array.isArray(data) ? data : data?.data || [];
+      return { data: rows.map(normalizeRow), error: null };
+>>>>>>> 5b70b4f (Whatsapp wired with API)
     },
     12000
   );
@@ -54,9 +64,21 @@ export async function createWaService(payload = {}) {
     is_active: payload.is_active !== false,
   };
 
+<<<<<<< HEAD
   const { data, error } = await supabase.from(TABLE_NAME).insert([row]).select('*').single();
   if (!error) invalidateCache('wa-service:');
   return { data: data ? normalizeRow(data) : null, error };
+=======
+  const { data, error } = await supabase.rpc('manage_wa_service', {
+    p_action: 'create',
+    p_trust_id: row.trust_id,
+    p_payload: row,
+  });
+  if (error) console.error('[WA:ServiceProvider] createWaService RPC failed', { row, error });
+  else invalidateCache('wa-service:');
+  const result = Array.isArray(data) ? data[0] : data?.data?.[0] || data;
+  return { data: result ? normalizeRow(result) : null, error };
+>>>>>>> 5b70b4f (Whatsapp wired with API)
 }
 
 export async function updateWaService(serviceId, updates = {}, trustId = null) {
@@ -74,21 +96,44 @@ export async function updateWaService(serviceId, updates = {}, trustId = null) {
     updated_at: new Date().toISOString(),
   };
 
+<<<<<<< HEAD
   let query = supabase.from(TABLE_NAME).update(payload).eq('id', serviceId);
   if (trustId) query = query.eq('trust_id', trustId);
 
   const { data, error } = await query.select('*').single();
   if (!error) invalidateCache('wa-service:');
   return { data: data ? normalizeRow(data) : null, error };
+=======
+  const { data, error } = await supabase.rpc('manage_wa_service', {
+    p_action: 'update',
+    p_trust_id: trustId,
+    p_id: serviceId,
+    p_payload: payload,
+  });
+  if (error) console.error('[WA:ServiceProvider] updateWaService RPC failed', { serviceId, payload, error });
+  else invalidateCache('wa-service:');
+  const result = Array.isArray(data) ? data[0] : data?.data?.[0] || data;
+  return { data: result ? normalizeRow(result) : null, error };
+>>>>>>> 5b70b4f (Whatsapp wired with API)
 }
 
 export async function deleteWaService(serviceId, trustId = null) {
   if (!serviceId) return { error: { message: 'No service id provided.' } };
 
+<<<<<<< HEAD
   let query = supabase.from(TABLE_NAME).delete().eq('id', serviceId);
   if (trustId) query = query.eq('trust_id', trustId);
 
   const { error } = await query;
   if (!error) invalidateCache('wa-service:');
+=======
+  const { error } = await supabase.rpc('manage_wa_service', {
+    p_action: 'delete',
+    p_trust_id: trustId,
+    p_id: serviceId,
+  });
+  if (error) console.error('[WA:ServiceProvider] deleteWaService RPC failed', { serviceId, error });
+  else invalidateCache('wa-service:');
+>>>>>>> 5b70b4f (Whatsapp wired with API)
   return { error };
 }

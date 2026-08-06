@@ -469,8 +469,8 @@ const APP_DESIGN_CARD_IDS = new Set(['card-logo', 'card-theme', 'card-feature-co
 const COMPANY_DETAILS_CARD_IDS = new Set(['card-trust', 'card-social-media-account-details', 'card-create-video']);
 const DASHBOARD_CARD_IDS = new Set();
 const HOME_PAGE_CARD_IDS = new Set(['card-sponsor', 'card-gallery', 'card-marquee']);
-const QUICK_ACTION_CARD_IDS = new Set(['card-profile', 'card-executive-body', 'card-noticeboard', 'card-events', 'card-facilities', 'card-donations', 'card-members', 'card-bulk-members-upload', 'card-achievements']);
-const EXTRA_CARD_IDS = new Set(['card-linked-trusts', 'card-nominations']);
+const QUICK_ACTION_CARD_IDS = new Set(['card-profile', 'card-executive-body', 'card-noticeboard', 'card-events', 'card-facilities', 'card-donations', 'card-members', 'card-achievements']);
+const EXTRA_CARD_IDS = new Set(['card-linked-trusts', 'card-nominations', 'card-bulk-members-upload']);
 const MENU_MODULE_CARDS = [
   {
     id: 'card-notifications',

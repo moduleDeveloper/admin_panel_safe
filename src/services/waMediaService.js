@@ -1,9 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { cachedQuery, invalidateCache } from './requestCache';
 
-const TABLE_NAME = 'WaMedia';
 const BUCKET = 'wa-media';
-const MAX_FETCH = 200;
 
 function uniqueId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -53,6 +51,7 @@ function extractStorageObjectPath(rawUrl = '') {
 }
 
 function normalizeRow(row = {}) {
+  if (!row) return null;
   return {
     id: row.id,
     trust_id: row.trust_id || null,
@@ -69,20 +68,59 @@ function normalizeRow(row = {}) {
   };
 }
 
-export async function fetchWaMediaByTrust(trustId) {
+function unwrapRpcRows(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (data && typeof data === 'object' && data.id) return [data];
+  return [];
+}
+
+function unwrapRpcRow(data) {
+  if (Array.isArray(data)) return data[0] || null;
+  if (Array.isArray(data?.data)) return data.data[0] || null;
+  if (data && typeof data === 'object' && data.id) return data;
+  return null;
+}
+
+function buildMediaPayload(payload = {}) {
+  return {
+    ...(payload.name !== undefined ? { p_name: String(payload.name || '').trim() } : {}),
+    ...(payload.purpose !== undefined ? { p_purpose: String(payload.purpose || '').trim() || null } : {}),
+    ...(payload.public_url !== undefined ? { p_public_url: payload.public_url || null } : {}),
+    ...(payload.type !== undefined ? { p_type: payload.type || null } : {}),
+    ...(payload.extn !== undefined ? { p_extn: payload.extn || null } : {}),
+    ...(payload.is_active !== undefined ? { p_is_active: payload.is_active !== false } : {}),
+    ...(payload.size !== undefined ? { p_size: payload.size } : {}),
+  };
+}
+
+async function manageWaMediaRpc(params) {
+  const { data, error } = await supabase.rpc('manage_wa_media', params);
+  return { data, error };
+}
+
+export async function fetchWaMediaByTrust(trustId, type = null) {
   if (!trustId) return { data: [], error: null };
 
   return cachedQuery(
-    `wa-media:list:${trustId}`,
+    `wa-media:list:${trustId}:${type || 'all'}`,
     async () => {
-      const { data, error } = await supabase
-        .from(TABLE_NAME)
-        .select('*')
-        .eq('trust_id', trustId)
-        .order('created_at', { ascending: false })
-        .range(0, MAX_FETCH - 1);
+      const { data, error } = await manageWaMediaRpc({
+        p_action: 'get',
+        p_trust_id: trustId,
+        ...(type ? { p_type: type } : {}),
+      });
 
+<<<<<<< HEAD
       return { data: (data || []).map(normalizeRow), error };
+=======
+      if (error) {
+        console.error('[WA:Media] fetchWaMediaByTrust RPC failed', { trustId, type, error });
+        return { data: [], error };
+      }
+
+      return { data: unwrapRpcRows(data).map(normalizeRow), error: null };
+>>>>>>> 5b70b4f (Whatsapp wired with API)
     },
     12000
   );
@@ -129,52 +167,89 @@ export async function uploadWaMediaFile(file, { trustId = null } = {}) {
 export async function createWaMedia(payload = {}) {
   if (!payload.trust_id) return { data: null, error: { message: 'No trust id provided.' } };
 
-  const row = {
-    trust_id: payload.trust_id,
-    name: String(payload.name || '').trim(),
-    purpose: String(payload.purpose || '').trim() || null,
-    public_url: payload.public_url || null,
-    type: payload.type || null,
-    extn: payload.extn || null,
-    is_active: payload.is_active !== false,
-    ...(payload.size !== undefined ? { size: payload.size } : {}),
-  };
+  const { data, error } = await manageWaMediaRpc({
+    p_action: 'insert',
+    p_trust_id: payload.trust_id,
+    ...buildMediaPayload(payload),
+  });
 
+<<<<<<< HEAD
   const { data, error } = await supabase.from(TABLE_NAME).insert([row]).select('*').single();
   if (!error) invalidateCache('wa-media:');
   return { data: data ? normalizeRow(data) : null, error };
+=======
+  if (error) {
+    console.error('[WA:Media] createWaMedia RPC failed', { payload, error });
+    return { data: null, error };
+  }
+
+  invalidateCache('wa-media:');
+  return { data: normalizeRow(unwrapRpcRow(data)), error: null };
+>>>>>>> 5b70b4f (Whatsapp wired with API)
 }
 
 export async function updateWaMedia(mediaId, updates = {}, trustId = null) {
   if (!mediaId) return { data: null, error: { message: 'No media id provided.' } };
 
+<<<<<<< HEAD
   const payload = {
     ...(updates.name !== undefined ? { name: String(updates.name || '').trim() } : {}),
     ...(updates.purpose !== undefined ? { purpose: String(updates.purpose || '').trim() || null } : {}),
     ...(updates.is_active !== undefined ? { is_active: updates.is_active !== false } : {}),
     updated_at: new Date().toISOString(),
   };
+=======
+  const { data, error } = await manageWaMediaRpc({
+    p_action: 'update',
+    p_id: mediaId,
+    ...(trustId ? { p_trust_id: trustId } : {}),
+    ...buildMediaPayload(updates),
+  });
+>>>>>>> 5b70b4f (Whatsapp wired with API)
 
-  let query = supabase.from(TABLE_NAME).update(payload).eq('id', mediaId);
-  if (trustId) query = query.eq('trust_id', trustId);
+  if (error) {
+    console.error('[WA:Media] updateWaMedia RPC failed', { mediaId, updates, error });
+    return { data: null, error };
+  }
 
+<<<<<<< HEAD
   const { data, error } = await query.select('*').single();
   if (!error) invalidateCache('wa-media:');
   return { data: data ? normalizeRow(data) : null, error };
+=======
+  invalidateCache('wa-media:');
+  return { data: normalizeRow(unwrapRpcRow(data)), error: null };
+>>>>>>> 5b70b4f (Whatsapp wired with API)
 }
 
 export async function deleteWaMedia(mediaId, trustId = null, publicUrl = '') {
   if (!mediaId) return { error: { message: 'No media id provided.' } };
+
+  const { error } = await manageWaMediaRpc({
+    p_action: 'delete',
+    p_id: mediaId,
+    ...(trustId ? { p_trust_id: trustId } : {}),
+  });
+
+  if (error) {
+    console.error('[WA:Media] deleteWaMedia RPC failed', { mediaId, error });
+    return { error };
+  }
 
   const objectPath = extractStorageObjectPath(publicUrl);
   if (objectPath) {
     await supabase.storage.from(BUCKET).remove([objectPath]);
   }
 
+<<<<<<< HEAD
   let query = supabase.from(TABLE_NAME).delete().eq('id', mediaId);
   if (trustId) query = query.eq('trust_id', trustId);
 
   const { error } = await query;
   if (!error) invalidateCache('wa-media:');
   return { error };
+=======
+  invalidateCache('wa-media:');
+  return { error: null };
+>>>>>>> 5b70b4f (Whatsapp wired with API)
 }
