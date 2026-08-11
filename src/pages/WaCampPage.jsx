@@ -76,6 +76,10 @@ export default function WaCampPage() {
   const [senderList, setSenderList] = useState([]);
 
   const approvedTemplates = useMemo(() => templates.filter((item) => item.approved), [templates]);
+  const selectedTemplate = useMemo(
+    () => templates.find((item) => item.id === form.template_id) || null,
+    [templates, form.template_id]
+  );
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -305,17 +309,13 @@ export default function WaCampPage() {
                       </select>
                     </label>
                     <label>
-                      <span>Status</span>
-                      <select
-                        value={form.status}
-                        onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
-                      >
-                        {STATUS_OPTIONS.map((status) => (
-                          <option key={status} value={status}>
-                            {status.charAt(0).toUpperCase() + status.slice(1)}
-                          </option>
-                        ))}
-                      </select>
+                      <span>Service Provider</span>
+                      <input
+                        value={selectedTemplate?.waService?.provider || selectedTemplate?.waService?.name || ''}
+                        placeholder="Select a template"
+                        disabled
+                        readOnly
+                      />
                     </label>
                     <label>
                       <span>Schedule Date *</span>

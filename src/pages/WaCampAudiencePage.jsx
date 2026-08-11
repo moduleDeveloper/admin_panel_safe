@@ -1,13 +1,60 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import Sidebar from '../components/Sidebar';
 import { fetchWaCampAudienceByCampaign } from '../services/waCampAudienceService';
 import { fetchWaCampsByTrust } from '../services/waCampService';
+import { fetchWaServicesByTrust } from '../services/waServiceProviderService';
+import { fetchWaTemplatesByTrust } from '../services/waTemplateService';
 import Pagination, { PAGE_SIZE } from '../components/Pagination';
 import './NoticeboardPage.css';
 
 const STATUS_OPTIONS = ['pending', 'processing', 'sent', 'delivered', 'failed', 'permanently_failed'];
+const CAMPAIGN_STATUS_OPTIONS = ['pending', 'processing', 'sent', 'delivered', 'failed', 'cancelled'];
+const AUDIENCE_METRIC_CARDS = [
+  {
+    label: 'Template',
+    value: '_rwas_data',
+    hint: '10 Aug 2026 11:31 AM',
+    tone: 'blue',
+    icon: 'megaphone',
+  },
+  {
+    label: 'Contacts',
+    value: '324',
+    hint: '100% of your contacts',
+    tone: 'sky',
+    icon: 'user',
+  },
+  {
+    label: 'Sent',
+    value: '323',
+    hint: '99.7% of contacts',
+    tone: 'purple',
+    icon: 'send',
+  },
+  {
+    label: 'Delivered',
+    value: '200',
+    hint: '61.7% delivery rate',
+    tone: 'green',
+    icon: 'check',
+  },
+  {
+    label: 'Failed',
+    value: '91',
+    hint: '28.1% not delivered',
+    tone: 'red',
+    icon: 'x',
+  },
+  {
+    label: 'Pending / In Queue',
+    value: '33',
+    hint: 'Still sending or awaiting delivery status',
+    tone: 'slate',
+    icon: 'clock',
+  },
+];
 
 function formatDateTime(value) {
   if (!value) return '-';
@@ -20,6 +67,27 @@ function formatDateTime(value) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatCampaignDate(value) {
+  if (!value) return '-';
+  const [year, month, day] = String(value).split('-');
+  if (!year || !month || !day) return value;
+  return `${day}-${month}-${year}`;
+}
+
+function formatCampaignTime(value) {
+  if (!value) return '';
+  const [h, m] = String(value).split(':');
+  const hour = Number(h);
+  if (Number.isNaN(hour)) return value;
+  const suffix = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = ((hour + 11) % 12) + 1;
+  return `${String(hour12).padStart(2, '0')}:${m || '00'} ${suffix}`;
+}
+
+function formatCampaignDateTime(dateValue, timeValue) {
+  return `${formatCampaignDate(dateValue)} ${formatCampaignTime(timeValue)}`.trim();
 }
 
 function statusLabel(status) {
@@ -39,6 +107,56 @@ function getInitials(value = '') {
   return safe.charAt(0).toUpperCase();
 }
 
+function MetricIcon({ type }) {
+  if (type === 'user') {
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M20 21a8 8 0 0 0-16 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    );
+  }
+  if (type === 'send') {
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m22 2-7 20-4-9-9-4 20-7Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M22 2 11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'check') {
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m20 6-11 11-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === 'x') {
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'clock') {
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 8v5l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 11v2a2 2 0 0 0 2 2h2l4 4v-4h2l8 4V5l-8 4H5a2 2 0 0 0-2 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function normalizeProviderId(value) {
+  return String(value || '').trim();
+}
+
 export default function WaCampAudiencePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,10 +165,14 @@ export default function WaCampAudiencePage() {
   const trustId = trust?.id || null;
 
   const [campaigns, setCampaigns] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [services, setServices] = useState([]);
   const [campaignsLoading, setCampaignsLoading] = useState(true);
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
-  const [campaignMenuOpen, setCampaignMenuOpen] = useState(false);
-  const campaignPickerRef = useRef(null);
+  const [campaignSearch, setCampaignSearch] = useState('');
+  const [campaignStatusFilter, setCampaignStatusFilter] = useState('all');
+  const [campaignProviderFilter, setCampaignProviderFilter] = useState('all');
+  const [campaignStartDate, setCampaignStartDate] = useState('');
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -59,6 +181,9 @@ export default function WaCampAudiencePage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const deferredSearch = useDeferredValue(search);
+  const hasCampaignFilters = Boolean(
+    campaignSearch || campaignStatusFilter !== 'all' || campaignProviderFilter !== 'all' || campaignStartDate
+  );
 
   // wa_camp_audience_view RPC only accepts a single campaign id, so we first
   // need the trust's campaign list to let the user pick which one to view.
@@ -70,40 +195,157 @@ export default function WaCampAudiencePage() {
 
     const loadCampaigns = async () => {
       setCampaignsLoading(true);
-      const { data, error: fetchError } = await fetchWaCampsByTrust(trustId);
+      const [
+        { data, error: fetchError },
+        { data: templateData, error: templateError },
+        { data: serviceData, error: serviceError },
+      ] = await Promise.all([
+        fetchWaCampsByTrust(trustId),
+        fetchWaTemplatesByTrust(trustId),
+        fetchWaServicesByTrust(trustId),
+      ]);
       if (fetchError) setError(fetchError.message || 'Unable to load campaigns.');
+      else if (templateError) setError(templateError.message || 'Unable to load templates.');
+      else if (serviceError) setError(serviceError.message || 'Unable to load service providers.');
       const list = data || [];
       setCampaigns(list);
-      setSelectedCampaignId((prev) => (prev && list.some((c) => c.id === prev) ? prev : list[0]?.id || ''));
+      setTemplates(templateData || []);
+      setServices(serviceData || []);
+      setSelectedCampaignId((prev) => (prev && list.some((c) => c.id === prev) ? prev : ''));
       setCampaignsLoading(false);
     };
 
     loadCampaigns();
   }, [navigate, trustId, userName, trust, currentSidebarNavKey]);
 
+  const templateById = useMemo(() => {
+    return new Map(templates.map((template) => [template.id, template]));
+  }, [templates]);
+
+  const serviceById = useMemo(() => {
+    return new Map(services.map((service) => [service.id, service]));
+  }, [services]);
+
+  const getCampaignTemplate = (campaign) => campaign?.template || templateById.get(campaign?.template_id) || null;
+
+  const getCampaignProviderId = (campaign) => {
+    const template = getCampaignTemplate(campaign);
+    return normalizeProviderId(
+      template?.wa_service_id ||
+      template?.waService?.id ||
+      template?.WaService?.id ||
+      template?.wa_service?.id ||
+      campaign?.wa_service_id
+    );
+  };
+
+  const getCampaignProviderLabel = (campaign) => {
+    const template = getCampaignTemplate(campaign);
+    const providerId = getCampaignProviderId(campaign);
+    const service = serviceById.get(providerId);
+    return (
+      service?.provider ||
+      service?.name ||
+      template?.waService?.provider ||
+      template?.waService?.name ||
+      template?.WaService?.provider ||
+      template?.WaService?.name ||
+      template?.wa_service?.provider ||
+      template?.wa_service?.name ||
+      'Unknown Provider'
+    );
+  };
+
+  const campaignProviderOptions = useMemo(() => {
+    const providers = new Map();
+    campaigns.forEach((campaign) => {
+      const providerId = getCampaignProviderId(campaign);
+      if (!providerId || providers.has(providerId)) return;
+      providers.set(providerId, getCampaignProviderLabel(campaign));
+    });
+    return Array.from(providers, ([id, label]) => ({ id, label })).sort((left, right) =>
+      left.label.localeCompare(right.label)
+    );
+  }, [campaigns, serviceById, templateById]);
+
+  const filteredCampaigns = useMemo(() => {
+    const term = campaignSearch.trim().toLowerCase();
+    let list = [...campaigns];
+
+    if (campaignStatusFilter !== 'all') {
+      list = list.filter((item) => (item.status || 'pending') === campaignStatusFilter);
+    }
+
+    if (campaignProviderFilter !== 'all') {
+      list = list.filter((item) => getCampaignProviderId(item) === campaignProviderFilter);
+    }
+
+    if (campaignStartDate) {
+      list = list.filter((item) => item.schedule_date === campaignStartDate);
+    }
+
+    if (term) {
+      list = list.filter((item) => {
+        const haystack = [
+          item?.template?.name,
+          item?.template?.language,
+          item?.schedule_date,
+          item?.schedule_time,
+          item?.status,
+          getCampaignProviderLabel(item),
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(term);
+      });
+    }
+
+    list.sort((left, right) => String(right?.created_at || '').localeCompare(String(left?.created_at || '')));
+
+    return list;
+  }, [campaigns, campaignSearch, campaignStatusFilter, campaignProviderFilter, campaignStartDate, serviceById, templateById]);
+
   const selectedCampaign = useMemo(
     () => campaigns.find((c) => c.id === selectedCampaignId) || null,
     [campaigns, selectedCampaignId]
   );
 
-  useEffect(() => {
-    if (!campaignMenuOpen) return;
-    const handleClickOutside = (event) => {
-      if (campaignPickerRef.current && !campaignPickerRef.current.contains(event.target)) {
-        setCampaignMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [campaignMenuOpen]);
+  const campaignSelectOptions = useMemo(() => {
+    return filteredCampaigns;
+  }, [filteredCampaigns]);
+
+  const clearCampaignFilters = () => {
+    setCampaignSearch('');
+    setCampaignStatusFilter('all');
+    setCampaignProviderFilter('all');
+    setCampaignStartDate('');
+  };
 
   useEffect(() => {
-    if (!trustId || !selectedCampaignId) return;
+    if (!selectedCampaignId) return;
+    const selectedVisible = filteredCampaigns.some((camp) => camp.id === selectedCampaignId);
+    if (selectedVisible) return;
+    setSelectedCampaignId('');
+    setRecords([]);
+    setSelectedId('');
+    setPage(1);
+  }, [filteredCampaigns, selectedCampaignId]);
 
+  useEffect(() => {
+    if (!trustId || !selectedCampaignId) {
+      setRecords([]);
+      setSelectedId('');
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
     const load = async () => {
       setLoading(true);
       setError('');
       const { data, error: fetchError } = await fetchWaCampAudienceByCampaign(selectedCampaignId, trustId);
+      if (!active) return;
       if (fetchError) setError(fetchError.message || 'Unable to load audience records.');
       const withCampaign = (data || []).map((item) => ({
         ...item,
@@ -116,6 +358,9 @@ export default function WaCampAudiencePage() {
     };
 
     load();
+    return () => {
+      active = false;
+    };
   }, [trustId, selectedCampaignId, selectedCampaign]);
 
   const showLoading = campaignsLoading || (loading && !!selectedCampaignId);
@@ -209,73 +454,125 @@ export default function WaCampAudiencePage() {
           )}
 
           {campaigns.length > 0 && (
-            <div className="nb-campaign-picker" ref={campaignPickerRef}>
-              <span className="nb-campaign-picker-label">Campaign</span>
-              <button
-                type="button"
-                className="nb-campaign-trigger"
-                onClick={() => setCampaignMenuOpen((open) => !open)}
-                aria-expanded={campaignMenuOpen}
-              >
-                <div className="nb-campaign-trigger-main">
-                  <span className="nb-campaign-trigger-name">
-                    {selectedCampaign?.template?.name || 'Select a campaign'}
+            <section className="nb-filter-card">
+              <div className="nb-filter-head">
+                <h3>Campaign Filters</h3>
+                <div className="nb-filter-head-actions">
+                  <span>
+                    Showing {filteredCampaigns.length} of {campaigns.length}
                   </span>
-                  <span className="nb-campaign-trigger-meta">
-                    {selectedCampaign?.schedule_date || '-'} {selectedCampaign?.schedule_time || ''}
-                  </span>
+                  <button
+                    type="button"
+                    className="nb-clear-filter-btn"
+                    onClick={clearCampaignFilters}
+                    disabled={!hasCampaignFilters}
+                  >
+                    Clear Filters
+                  </button>
                 </div>
-                {selectedCampaign && (
-                  <span className={statusPillClass(selectedCampaign.status)}>
-                    {statusLabel(selectedCampaign.status)}
-                  </span>
-                )}
-                <svg
-                  className={`nb-campaign-chevron ${campaignMenuOpen ? 'open' : ''}`}
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-
-              {campaignMenuOpen && (
-                <div className="nb-campaign-menu" role="listbox">
-                  {campaigns.map((camp) => (
-                    <button
-                      key={camp.id}
-                      type="button"
-                      role="option"
-                      aria-selected={camp.id === selectedCampaignId}
-                      className={`nb-campaign-option ${camp.id === selectedCampaignId ? 'active' : ''}`}
-                      onClick={() => {
-                        setSelectedCampaignId(camp.id);
-                        setCampaignMenuOpen(false);
-                      }}
-                    >
-                      <div className="nb-campaign-option-main">
-                        <span className="nb-campaign-option-name">{camp.template?.name || 'Untitled template'}</span>
-                        <span className="nb-campaign-option-meta">
-                          {camp.schedule_date || '-'} {camp.schedule_time || ''}
-                        </span>
-                      </div>
-                      <span className={statusPillClass(camp.status)}>{statusLabel(camp.status)}</span>
-                    </button>
-                  ))}
+              </div>
+              <div className="nb-filter-grid nb-filter-grid-5">
+                <label>
+                  <span>Campaign</span>
+                  <select
+                    value={selectedCampaignId}
+                    onChange={(event) => setSelectedCampaignId(event.target.value)}
+                  >
+                    <option value="">
+                      {campaignSelectOptions.length === 0 ? 'No campaigns match' : 'Select campaign'}
+                    </option>
+                    {campaignSelectOptions.map((camp) => (
+                      <option key={camp.id} value={camp.id}>
+                        {camp.template?.name || 'Untitled template'} - {formatCampaignDateTime(camp.schedule_date, camp.schedule_time)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Search Campaign</span>
+                  <input
+                    value={campaignSearch}
+                    onChange={(event) => setCampaignSearch(event.target.value)}
+                    placeholder="Search template, date or status..."
+                  />
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select
+                    value={campaignStatusFilter}
+                    onChange={(event) => setCampaignStatusFilter(event.target.value)}
+                  >
+                    <option value="all">All</option>
+                    {CAMPAIGN_STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>{statusLabel(status)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Service Provider</span>
+                  <select
+                    value={campaignProviderFilter}
+                    onChange={(event) => setCampaignProviderFilter(event.target.value)}
+                  >
+                    <option value="all">All</option>
+                    {campaignProviderOptions.map((provider) => (
+                      <option key={provider.id} value={provider.id}>{provider.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Start Date</span>
+                  <input
+                    type="date"
+                    value={campaignStartDate}
+                    onChange={(event) => setCampaignStartDate(event.target.value)}
+                    onClick={(event) => event.target.showPicker?.()}
+                  />
+                </label>
+              </div>
+              {selectedCampaign && (
+                <div className="nb-selected-campaign">
+                  <strong>{selectedCampaign.template?.name || 'Untitled template'}</strong>
+                  <span>{formatCampaignDateTime(selectedCampaign.schedule_date, selectedCampaign.schedule_time)}</span>
+                  <span className={statusPillClass(selectedCampaign.status)}>{statusLabel(selectedCampaign.status)}</span>
+                  <span>{records.length} recipient{records.length === 1 ? '' : 's'}</span>
                 </div>
               )}
-            </div>
+            </section>
           )}
 
           {showLoading && <div className="nb-empty">Loading audience records...</div>}
 
-          {!showLoading && campaigns.length > 0 && records.length === 0 && (
+          {!showLoading && campaigns.length > 0 && !selectedCampaignId && (
+            <div className="nb-empty">Select a campaign to view audience records.</div>
+          )}
+
+          {!showLoading && campaigns.length > 0 && selectedCampaignId && records.length === 0 && (
             <div className="nb-empty">No audience records found for this campaign.</div>
           )}
 
-          {!showLoading && records.length > 0 && (
+          {!showLoading && selectedCampaignId && (
+            <section className="nb-audience-metrics" aria-label="Audience status summary">
+              {AUDIENCE_METRIC_CARDS.map((card) => (
+                <button
+                  key={card.label}
+                  type="button"
+                  className={`nb-audience-metric nb-audience-metric-${card.tone}`}
+                >
+                  <div>
+                    <span>{card.label}</span>
+                    <strong>{card.value}</strong>
+                    <small>{card.hint}</small>
+                  </div>
+                  <b aria-hidden="true">
+                    <MetricIcon type={card.icon} />
+                  </b>
+                </button>
+              ))}
+            </section>
+          )}
+
+          {!showLoading && selectedCampaignId && records.length > 0 && (
             <section className="nb-profile-layout">
               <aside className="nb-left-panel">
                 <div className="nb-left-head">

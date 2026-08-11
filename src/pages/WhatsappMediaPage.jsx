@@ -250,6 +250,11 @@ export default function WhatsappMediaPage() {
         setSaving(false);
         return;
       }
+      if (!data?.id) {
+        setFormError('Media was uploaded, but the saved media record could not be loaded.');
+        setSaving(false);
+        return;
+      }
       setMediaList((prev) => [data, ...prev]);
       setSelectedId(data.id);
     }

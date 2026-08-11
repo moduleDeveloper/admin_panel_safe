@@ -177,7 +177,28 @@ export async function createWaMedia(payload = {}) {
   }
 
   invalidateCache('wa-media:');
-  return { data: normalizeRow(unwrapRpcRow(data)), error: null };
+  const createdRow = unwrapRpcRow(data);
+  if (createdRow) return { data: normalizeRow(createdRow), error: null };
+
+  const { data: refetchData, error: refetchError } = await manageWaMediaRpc({
+    p_action: 'get',
+    p_trust_id: payload.trust_id,
+    ...(payload.type ? { p_type: payload.type } : {}),
+  });
+
+  if (refetchError) {
+    console.error('[WA:Media] createWaMedia refetch failed', { payload, refetchError });
+    return { data: null, error: { message: 'Media was saved, but the saved record could not be loaded.' } };
+  }
+
+  const rows = unwrapRpcRows(refetchData);
+  const matchedRow = rows.find((row) => row?.public_url === payload.public_url) || null;
+  if (!matchedRow) {
+    console.error('[WA:Media] createWaMedia returned no created row', { payload, data, refetchData });
+    return { data: null, error: { message: 'Media was saved, but the saved record was not returned.' } };
+  }
+
+  return { data: normalizeRow(matchedRow), error: null };
 }
 
 export async function updateWaMedia(mediaId, updates = {}, trustId = null) {

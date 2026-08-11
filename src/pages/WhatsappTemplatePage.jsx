@@ -402,6 +402,11 @@ export default function WhatsappTemplatePage() {
         setSaving(false);
         return;
       }
+      if (!createdMedia?.id) {
+        setFormError('Media was uploaded, but the saved media record could not be loaded.');
+        setSaving(false);
+        return;
+      }
       finalMediaId = createdMedia.id;
     }
 
@@ -609,43 +614,11 @@ export default function WhatsappTemplatePage() {
                         ))}
                       </select>
                     </label>
-                    <label>
-                      <span>Purpose</span>
-                      <input
-                        value={form.purpose}
-                        onChange={(e) => setForm((prev) => ({ ...prev, purpose: e.target.value }))}
-                        placeholder="e.g. OTP, Reminder"
-                      />
-                    </label>
-                    <label className="nb-span-2">
-                      <span>Footer</span>
-                      <input
-                        value={form.footer}
-                        onChange={(e) => setForm((prev) => ({ ...prev, footer: e.target.value }))}
-                        placeholder="Enter footer text"
-                      />
-                    </label>
-                    <label className="nb-span-2">
-                      <span>Text</span>
-                      <textarea
-                        rows="4"
-                        value={form.text}
-                        onChange={(e) => handleTextChange(e.target.value)}
-                        placeholder="Enter template message, use {{body_1}}, {{body_2}} for variables"
-                      />
-                    </label>
-                    <label className="nb-checkbox-field">
-                      <input
-                        type="checkbox"
-                        checked={form.approved}
-                        onChange={(e) => setForm((prev) => ({ ...prev, approved: e.target.checked }))}
-                      />
-                      <span>Approved</span>
-                    </label>
+                    
+                    
                   </div>
                 </section>
-
-                <section className="nb-form-section">
+                     <section className="nb-form-section">
                   <h4 className="nb-section-title">Media (optional)</h4>
                   <div className="nb-form-grid nb-form-grid-2">
                     <label>
@@ -743,9 +716,29 @@ export default function WhatsappTemplatePage() {
                     </div>
                   )}
                 </section>
-
+                
                 <section className="nb-form-section">
-                  <h4 className="nb-section-title">Variables</h4>
+                  <h4 className="nb-section-title">Body Text</h4>
+                  <div className='nb-form-grid nb-form-grid-2' style={{ marginBottom: 12 }}>
+                    <label className="nb-span-2">
+                      <span>Text</span>
+                      <textarea
+                        rows="4"
+                        value={form.text}
+                        onChange={(e) => handleTextChange(e.target.value)}
+                        placeholder="Enter template message, use {{body_1}}, {{body_2}} for variables"
+                      />
+                    </label>
+                    <label className="nb-checkbox-field" style={{ visibility: 'hidden' }}>
+                      <input
+                        type="checkbox"
+                        checked={form.approved}
+                        onChange={(e) => setForm((prev) => ({ ...prev, approved: e.target.checked }))}
+                      />
+                      <span>Approved</span>
+                    </label>
+                    </div>
+                    <h4 className="nb-section-title">Variables</h4>
                   {variables.map((row, index) => (
                     <div className="nb-form-grid nb-form-grid-2" key={`var-${index}`} style={{ marginBottom: 10 }}>
                       <label>
@@ -778,14 +771,41 @@ export default function WhatsappTemplatePage() {
                       </label>
                     </div>
                   ))}
-                  <button
-                    type="button"
-                    className="nb-secondary-btn"
-                    onClick={() => setVariables((prev) => [...prev, createEmptyVar()])}
-                  >
-                    + Add Variable
-                  </button>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                    <button
+                      type="button"
+                      className="nb-secondary-btn"
+                      onClick={() => setVariables((prev) => [...prev, createEmptyVar()])}
+                    >
+                      + Add Variable
+                    </button>
+                  </div>
+                  <h4 className="nb-section-title" style={{ marginTop: 20 }}>Other Details</h4>
+                  <div className="nb-form-grid nb-form-grid-2">
+                    
+                    <label className="nb-span-2">
+                      <span>Purpose</span>
+                      <input
+                        value={form.purpose}
+                        onChange={(e) => setForm((prev) => ({ ...prev, purpose: e.target.value }))}
+                        placeholder="e.g. OTP, Reminder"
+                      />
+                    </label>
+                    <label className="nb-span-2">
+                      <span>Footer</span>
+                      <input
+                        value={form.footer}
+                        onChange={(e) => setForm((prev) => ({ ...prev, footer: e.target.value }))}
+                        placeholder="Enter footer text"
+                      />
+                    </label>
+                    
+                  </div>
                 </section>
+
+           
+
+                
               </div>
 
               {formError && <div className="nb-error">{formError}</div>}
