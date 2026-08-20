@@ -62,7 +62,10 @@ export async function toggleFeatureFlag(flagId, isEnabled) {
     .select()
     .single();
 
-  if (!error) invalidateCache('features:');
+  if (!error) {
+    invalidateCache('features:');
+    invalidateCache('user-management:enabled-features:');
+  }
   return { data, error };
 }
 
@@ -77,7 +80,10 @@ export async function updateFeatureFlag(flagId, updates) {
     .select()
     .single();
 
-  if (!error) invalidateCache('features:');
+  if (!error) {
+    invalidateCache('features:');
+    invalidateCache('user-management:enabled-features:');
+  }
   return { data, error };
 }
 
@@ -100,7 +106,10 @@ export async function addFeatureFlag({ featuresId, trustId, displayName, tagline
     .select()
     .single();
 
-  if (!error) invalidateCache('features:');
+  if (!error) {
+    invalidateCache('features:');
+    invalidateCache('user-management:enabled-features:');
+  }
   return { data, error };
 }
 
@@ -113,7 +122,10 @@ export async function deleteFeatureFlag(flagId) {
     .delete()
     .eq('id', flagId);
 
-  if (!error) invalidateCache('features:');
+  if (!error) {
+    invalidateCache('features:');
+    invalidateCache('user-management:enabled-features:');
+  }
   return { error };
 }
 
@@ -127,6 +139,9 @@ export async function createFeature({ name, subname, remarks }) {
     .select()
     .single();
 
-  if (!error) invalidateCache('features:');
+  if (!error) {
+    invalidateCache('features:');
+    invalidateCache('user-management:enabled-features:');
+  }
   return { data, error };
 }

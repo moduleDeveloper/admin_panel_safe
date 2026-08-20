@@ -59,15 +59,41 @@ export async function fetchUsersByTrustId(trustId) {
   }, 10000);
 }
 
-export async function fetchFeatureCatalog() {
-  return cachedQuery('user-management:features', async () => {
-    const { data, error } = await supabase
-      .from('features')
-      .select(FEATURE_COLUMNS)
-      .order('name', { ascending: true });
+export async function fetchFeatureCatalog(trustId, tier = 'general') {
+  if (!trustId) return { data: [], error: null };
 
-    return { data: data || [], error };
-  }, 30000);
+  return cachedQuery(`user-management:enabled-features:${trustId}:${tier}`, async () => {
+    const { data, error } = await supabase
+      .from('feature_flags')
+      .select(`
+        id,
+        features_id,
+        display_name,
+        tagline,
+        quick_order,
+        features (
+          ${FEATURE_COLUMNS}
+        )
+      `)
+      .eq('trust_id', trustId)
+      .eq('tier', tier)
+      .eq('is_enabled', true)
+      .order('quick_order', { ascending: true, nullsFirst: false })
+      .order('display_name', { ascending: true });
+
+    if (error) return { data: [], error };
+
+    const enabledFeatures = (data || [])
+      .filter((flag) => flag.features_id && flag.features)
+      .map((flag) => ({
+        id: flag.features_id,
+        name: String(flag.display_name || flag.features.name || '').trim() || 'Untitled Feature',
+        subname: String(flag.tagline || flag.features.subname || '').trim(),
+        remarks: flag.features.remarks || '',
+      }));
+
+    return { data: enabledFeatures, error: null };
+  }, 10000);
 }
 
 export async function fetchUserRolesByUserId(userId) {
@@ -157,14 +183,20 @@ export async function replaceUserRoles(userId, roleRows = []) {
 
   const activeRows = (roleRows || [])
     .filter((item) => item && item.feature_id)
-    .map((item) => ({
-      user_id: userId,
-      feature_id: item.feature_id,
-      can_view: !!item.can_view,
-      can_edit: !!item.can_edit,
-      can_delete: !!item.can_delete,
-      can_add: !!item.can_add,
-    }))
+    .map((item) => {
+      const canAdd = !!item.can_add;
+      const canEdit = !!item.can_edit;
+      const canDelete = !!item.can_delete;
+
+      return {
+        user_id: userId,
+        feature_id: item.feature_id,
+        can_view: !!item.can_view || canAdd || canEdit || canDelete,
+        can_edit: canEdit,
+        can_delete: canDelete,
+        can_add: canAdd,
+      };
+    })
     .filter((item) => item.can_view || item.can_edit || item.can_delete || item.can_add);
 
   if (!activeRows.length) {

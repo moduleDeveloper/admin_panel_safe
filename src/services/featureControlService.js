@@ -163,6 +163,7 @@ export async function createFeatureFlagIfMissing({ feature, trustId, tier, isEna
 
   if (!insertError) {
     invalidateCache('feature-control:flags:');
+    invalidateCache('user-management:enabled-features:');
     return { data: inserted, error: null };
   }
 
@@ -192,7 +193,10 @@ export async function updateFeatureFlagById(flagId, updates) {
     .select(FLAG_COLUMNS)
     .single();
 
-  if (!error) invalidateCache('feature-control:flags:');
+  if (!error) {
+    invalidateCache('feature-control:flags:');
+    invalidateCache('user-management:enabled-features:');
+  }
   return { data, error };
 }
 

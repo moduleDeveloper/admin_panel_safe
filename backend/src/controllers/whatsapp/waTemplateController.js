@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '../lib/supabaseAdmin.js';
+import { supabaseAdmin } from '../../lib/supabaseAdmin.js';
 import { badRequest } from '../utils/helpers.js';
 
 const TABLE_NAME = 'WaTemp';

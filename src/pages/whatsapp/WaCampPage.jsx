@@ -1,12 +1,12 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import PageHeader from '../components/PageHeader';
-import Sidebar from '../components/Sidebar';
-import WaCampImport from '../components/WaCampImport';
-import Pagination, { PAGE_SIZE } from '../components/Pagination';
-import { fetchWaTemplatesByTrust } from '../services/waTemplateService';
-import { fetchWaCampsByTrust, submitWaCampaign } from '../services/waCampService';
-import './NoticeboardPage.css';
+import PageHeader from '../../components/PageHeader';
+import Sidebar from '../../components/Sidebar';
+import WaCampImport from '../../components/whatsapp/WaCampImport';
+import Pagination, { PAGE_SIZE } from '../../components/Pagination';
+import { fetchWaTemplatesByTrust } from '../../services/whatsapp/waTemplateService';
+import { fetchWaCampsByTrust, submitWaCampaign } from '../../services/whatsapp/waCampService';
+import '../NoticeboardPage.css';
 
 const STATUS_OPTIONS = ['pending', 'sent', 'failed', 'cancelled'];
 

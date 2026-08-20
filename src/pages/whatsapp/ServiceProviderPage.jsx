@@ -1,15 +1,14 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import PageHeader from '../components/PageHeader';
-import Sidebar from '../components/Sidebar';
+import PageHeader from '../../components/PageHeader';
+import Sidebar from '../../components/Sidebar';
 import {
-  createWaMedia,
-  deleteWaMedia,
-  fetchWaMediaByTrust,
-  updateWaMedia,
-  uploadWaMediaFile,
-} from '../services/waMediaService';
-import './NoticeboardPage.css';
+  createWaService,
+  deleteWaService,
+  fetchWaServicesByTrust,
+  updateWaService,
+} from '../../services/whatsapp/waServiceProviderService';
+import '../NoticeboardPage.css';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -20,55 +19,44 @@ function formatDate(value) {
 
 function getInitials(value = '') {
   const safe = String(value || '').trim();
-  if (!safe) return 'M';
+  if (!safe) return 'S';
   return safe.charAt(0).toUpperCase();
 }
 
-function formatBytes(bytes) {
-  const value = Number(bytes);
-  if (!Number.isFinite(value) || value <= 0) return '-';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let size = value;
-  let unitIndex = 0;
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex += 1;
-  }
-  return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+function sanitizeDigits(value, maxLength = 10) {
+  return String(value ?? '').replace(/\D/g, '').slice(0, maxLength);
 }
 
-function bytesToKb(bytes) {
-  const value = Number(bytes);
-  if (!Number.isFinite(value) || value <= 0) return 0;
-  return Math.round((value / 1024) * 100) / 100;
-}
-
-// `size` is stored in KB in the database.
-function formatStoredKb(kb) {
-  const value = Number(kb);
-  if (!Number.isFinite(value) || value <= 0) return '-';
-  if (value >= 1024) return `${(value / 1024).toFixed(2)} MB`;
-  return `${value} KB`;
+function maskToken(value = '') {
+  const safe = String(value || '');
+  if (!safe) return '-';
+  if (safe.length <= 4) return '****';
+  return `${'*'.repeat(Math.max(0, safe.length - 4))}${safe.slice(-4)}`;
 }
 
 const EMPTY_FORM = {
-  name: '',
+  provider: '',
   purpose: '',
+  name: '',
+  wa_number: '',
+  company_id: '',
+  endpoint: '',
+  api_token: '',
   is_active: true,
 };
 
-export default function WhatsappMediaPage() {
+export default function ServiceProviderPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { userName = 'Admin', trust = null } = location.state || {};
   const currentSidebarNavKey = location.state?.sidebarNavKey || 'whatsapp';
   const trustId = trust?.id || null;
-  const isCreateRoute = location.pathname === '/whatsapp/media/create';
-  const isEditRoute = location.pathname === '/whatsapp/media/edit';
+  const isCreateRoute = location.pathname === '/whatsapp/service-provider/create';
+  const isEditRoute = location.pathname === '/whatsapp/service-provider/edit';
   const isFormRoute = isCreateRoute || isEditRoute;
   const routeEditId = location.state?.editId || new URLSearchParams(location.search).get('id') || '';
 
-  const [mediaList, setMediaList] = useState([]);
+  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
@@ -78,10 +66,9 @@ export default function WhatsappMediaPage() {
   const [selectedId, setSelectedId] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showToken, setShowToken] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [filePreviewUrl, setFilePreviewUrl] = useState('');
-  const [dragOver, setDragOver] = useState(false);
+  const [numberWarning, setNumberWarning] = useState('');
   const deferredSearch = useDeferredValue(search);
 
   const [form, setForm] = useState(EMPTY_FORM);
@@ -90,12 +77,19 @@ export default function WhatsappMediaPage() {
     setForm(EMPTY_FORM);
     setFormError('');
     setEditingId(null);
-    setSelectedFile(null);
-    setFilePreviewUrl('');
+    setShowToken(false);
+    setNumberWarning('');
+  };
+
+  const handleWaNumberChange = (rawValue) => {
+    const raw = String(rawValue ?? '');
+    const sanitized = sanitizeDigits(raw, 10);
+    setNumberWarning(/\D/.test(raw) ? 'Only numbers are allowed in WhatsApp Number.' : '');
+    setForm((prev) => ({ ...prev, wa_number: sanitized }));
   };
 
   const goToList = () => {
-    navigate('/whatsapp/media', { replace: true, state: { userName, trust, sidebarNavKey: currentSidebarNavKey } });
+    navigate('/whatsapp/service-provider', { replace: true, state: { userName, trust, sidebarNavKey: currentSidebarNavKey } });
   };
 
   useEffect(() => {
@@ -107,9 +101,9 @@ export default function WhatsappMediaPage() {
     const load = async () => {
       setLoading(true);
       setError('');
-      const { data, error: fetchError } = await fetchWaMediaByTrust(trustId);
-      if (fetchError) setError(fetchError.message || 'Unable to load media.');
-      setMediaList(data || []);
+      const { data, error: fetchError } = await fetchWaServicesByTrust(trustId);
+      if (fetchError) setError(fetchError.message || 'Unable to load service providers.');
+      setServices(data || []);
       setLoading(false);
     };
 
@@ -122,14 +116,8 @@ export default function WhatsappMediaPage() {
     return () => document.removeEventListener('click', closeMenu);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
-    };
-  }, [filePreviewUrl]);
-
   const statusCounts = useMemo(() => {
-    return mediaList.reduce(
+    return services.reduce(
       (acc, item) => {
         if (item.is_active) acc.active += 1;
         else acc.inactive += 1;
@@ -137,11 +125,11 @@ export default function WhatsappMediaPage() {
       },
       { active: 0, inactive: 0 }
     );
-  }, [mediaList]);
+  }, [services]);
 
-  const filteredMedia = useMemo(() => {
+  const filteredServices = useMemo(() => {
     const term = deferredSearch.trim().toLowerCase();
-    let list = [...mediaList];
+    let list = [...services];
 
     if (statusFilter === 'active') list = list.filter((item) => item.is_active);
     else if (statusFilter === 'inactive') list = list.filter((item) => !item.is_active);
@@ -149,30 +137,31 @@ export default function WhatsappMediaPage() {
     if (term) {
       list = list.filter((item) => {
         const name = String(item?.name || '').toLowerCase();
+        const provider = String(item?.provider || '').toLowerCase();
         const purpose = String(item?.purpose || '').toLowerCase();
-        const type = String(item?.type || '').toLowerCase();
-        return name.includes(term) || purpose.includes(term) || type.includes(term);
+        const number = String(item?.wa_number || '').toLowerCase();
+        return name.includes(term) || provider.includes(term) || purpose.includes(term) || number.includes(term);
       });
     }
 
     list.sort((left, right) => String(right?.created_at || '').localeCompare(String(left?.created_at || '')));
     return list;
-  }, [mediaList, deferredSearch, statusFilter]);
+  }, [services, deferredSearch, statusFilter]);
 
-  const selectedMedia = useMemo(
-    () => filteredMedia.find((item) => item.id === selectedId) || null,
-    [filteredMedia, selectedId]
+  const selectedService = useMemo(
+    () => filteredServices.find((item) => item.id === selectedId) || null,
+    [filteredServices, selectedId]
   );
 
   useEffect(() => {
     if (loading || isFormRoute) return;
-    if (!filteredMedia.length) {
+    if (!filteredServices.length) {
       setSelectedId('');
       return;
     }
-    const exists = filteredMedia.some((item) => item.id === selectedId);
-    if (!exists) setSelectedId(filteredMedia[0].id);
-  }, [filteredMedia, selectedId, loading, isFormRoute]);
+    const exists = filteredServices.some((item) => item.id === selectedId);
+    if (!exists) setSelectedId(filteredServices[0].id);
+  }, [filteredServices, selectedId, loading, isFormRoute]);
 
   useEffect(() => {
     if (!isFormRoute) return;
@@ -185,77 +174,63 @@ export default function WhatsappMediaPage() {
     if (!isEditRoute) return;
     const targetId = String(routeEditId || selectedId || '');
     if (!targetId) return;
-    const target = mediaList.find((item) => String(item.id) === targetId);
+    const target = services.find((item) => String(item.id) === targetId);
     if (!target) return;
 
     setForm({
-      name: target.name || '',
+      provider: target.provider || '',
       purpose: target.purpose || '',
+      name: target.name || '',
+      wa_number: target.wa_number || '',
+      company_id: target.company_id || '',
+      endpoint: target.endpoint || '',
+      api_token: target.api_token || '',
       is_active: target.is_active !== false,
     });
     setEditingId(target.id);
     setFormError('');
-    setSelectedFile(null);
-    setFilePreviewUrl('');
-  }, [isFormRoute, isCreateRoute, isEditRoute, routeEditId, selectedId, mediaList]);
-
-  const handleFile = (file) => {
-    if (!file) return;
-    setFormError('');
-    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
-    setSelectedFile(file);
-    setFilePreviewUrl(file.type.startsWith('image/') ? URL.createObjectURL(file) : '');
-  };
+    setShowToken(false);
+    setNumberWarning('');
+  }, [isFormRoute, isCreateRoute, isEditRoute, routeEditId, selectedId, services]);
 
   const handleSave = async () => {
     setFormError('');
+    if (!form.provider.trim()) {
+      setFormError('Provider is required.');
+      return;
+    }
+    if (!form.purpose.trim()) {
+      setFormError('Purpose is required.');
+      return;
+    }
     if (!form.name.trim()) {
       setFormError('Name is required.');
       return;
     }
-    if (!editingId && !selectedFile) {
-      setFormError('Please select a file to upload.');
+    if (form.wa_number.trim() && form.wa_number.trim().length !== 10) {
+      setFormError('WhatsApp Number must be exactly 10 digits.');
       return;
     }
 
     setSaving(true);
+    const payload = { ...form, trust_id: trustId };
 
     if (editingId) {
-      const { data, error: updateError } = await updateWaMedia(editingId, form, trustId);
+      const { data, error: updateError } = await updateWaService(editingId, payload, trustId);
       if (updateError) {
-        setFormError(updateError.message || 'Unable to update media.');
+        setFormError(updateError.message || 'Unable to update service provider.');
         setSaving(false);
         return;
       }
-      setMediaList((prev) => prev.map((item) => (item.id === editingId ? data : item)));
+      setServices((prev) => prev.map((item) => (item.id === editingId ? data : item)));
     } else {
-      const { data: uploaded, error: uploadError } = await uploadWaMediaFile(selectedFile, { trustId });
-      if (uploadError) {
-        setFormError(uploadError.message || 'Unable to upload file.');
-        setSaving(false);
-        return;
-      }
-      const { data, error: createError } = await createWaMedia({
-        trust_id: trustId,
-        name: form.name,
-        purpose: form.purpose,
-        is_active: form.is_active,
-        public_url: uploaded.publicUrl,
-        type: uploaded.type,
-        extn: uploaded.extn,
-        size: bytesToKb(uploaded.size),
-      });
+      const { data, error: createError } = await createWaService(payload);
       if (createError) {
-        setFormError(createError.message || 'Unable to create media.');
+        setFormError(createError.message || 'Unable to create service provider.');
         setSaving(false);
         return;
       }
-      if (!data?.id) {
-        setFormError('Media was uploaded, but the saved media record could not be loaded.');
-        setSaving(false);
-        return;
-      }
-      setMediaList((prev) => [data, ...prev]);
+      setServices((prev) => [data, ...prev]);
       setSelectedId(data.id);
     }
 
@@ -265,18 +240,18 @@ export default function WhatsappMediaPage() {
   };
 
   const handleDelete = async (item) => {
-    const shouldDelete = window.confirm(`Delete media "${item?.name || 'this entry'}"?`);
+    const shouldDelete = window.confirm(`Delete service provider "${item?.name || 'this entry'}"?`);
     if (!shouldDelete) {
       setActiveMenuId(null);
       return;
     }
 
     setUpdatingId(item.id);
-    const { error: deleteError } = await deleteWaMedia(item.id, trustId, item.public_url);
+    const { error: deleteError } = await deleteWaService(item.id, trustId);
     if (deleteError) {
-      setError(deleteError.message || 'Unable to delete media.');
+      setError(deleteError.message || 'Unable to delete service provider.');
     } else {
-      setMediaList((prev) => prev.filter((entry) => entry.id !== item.id));
+      setServices((prev) => prev.filter((entry) => entry.id !== item.id));
     }
     setUpdatingId(null);
     setActiveMenuId(null);
@@ -284,27 +259,32 @@ export default function WhatsappMediaPage() {
 
   const handleEdit = (item) => {
     setForm({
-      name: item.name || '',
+      provider: item.provider || '',
       purpose: item.purpose || '',
+      name: item.name || '',
+      wa_number: item.wa_number || '',
+      company_id: item.company_id || '',
+      endpoint: item.endpoint || '',
+      api_token: item.api_token || '',
       is_active: item.is_active !== false,
     });
     setEditingId(item.id);
     setFormError('');
-    setSelectedFile(null);
-    setFilePreviewUrl('');
+    setShowToken(false);
+    setNumberWarning('');
     setActiveMenuId(null);
-    navigate(`/whatsapp/media/edit?id=${item.id}`, {
+    navigate(`/whatsapp/service-provider/edit?id=${item.id}`, {
       state: { userName, trust, editId: item.id, sidebarNavKey: currentSidebarNavKey },
     });
   };
 
   const handleToggleActive = async (item) => {
     setUpdatingId(item.id);
-    const { data, error: updateError } = await updateWaMedia(item.id, { is_active: !item.is_active }, trustId);
+    const { data, error: updateError } = await updateWaService(item.id, { is_active: !item.is_active }, trustId);
     if (updateError) {
       setError(updateError.message || 'Unable to update status.');
     } else if (data) {
-      setMediaList((prev) => prev.map((entry) => (entry.id === item.id ? data : entry)));
+      setServices((prev) => prev.map((entry) => (entry.id === item.id ? data : entry)));
     }
     setUpdatingId(null);
   };
@@ -321,8 +301,8 @@ export default function WhatsappMediaPage() {
 
       <main className="nb-main">
         <PageHeader
-          title="Whatsapp Media"
-          subtitle="Manage WhatsApp media library"
+          title="Service Provider"
+          subtitle="Manage WhatsApp service provider settings"
           onBack={() => {
             if (isFormRoute) {
               goToList();
@@ -337,26 +317,80 @@ export default function WhatsappMediaPage() {
 
           {isFormRoute && (
             <div className="nb-form-card">
-              <h3>{editingId ? 'Edit Media' : 'Upload Media'}</h3>
+              <h3>{editingId ? 'Edit Service Provider' : 'Create Service Provider'}</h3>
               <div className="nb-form-layout">
                 <section className="nb-form-section">
-                  <h4 className="nb-section-title">Media Details</h4>
+                  <h4 className="nb-section-title">Provider Details</h4>
                   <div className="nb-form-grid nb-form-grid-2">
+                    <label>
+                      <span>Provider *</span>
+                      <input
+                        value={form.provider}
+                        onChange={(e) => setForm((prev) => ({ ...prev, provider: e.target.value }))}
+                        placeholder="e.g. Blotato, Meta Cloud API"
+                      />
+                    </label>
+                    <label>
+                      <span>Purpose *</span>
+                      <input
+                        value={form.purpose}
+                        onChange={(e) => setForm((prev) => ({ ...prev, purpose: e.target.value }))}
+                        placeholder="e.g. OTP, Marketing"
+                      />
+                    </label>
                     <label>
                       <span>Name *</span>
                       <input
                         value={form.name}
                         onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                        placeholder="Enter media name"
+                        placeholder="Enter display name"
                       />
                     </label>
                     <label>
-                      <span>Purpose</span>
+                      <span>WhatsApp Number</span>
                       <input
-                        value={form.purpose}
-                        onChange={(e) => setForm((prev) => ({ ...prev, purpose: e.target.value }))}
-                        placeholder="e.g. Marketing, Notification"
+                        value={form.wa_number}
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={10}
+                        onChange={(e) => handleWaNumberChange(e.target.value)}
+                        placeholder="Enter 10 digit WhatsApp number"
                       />
+                    </label>
+                    <label>
+                      <span>Company Id</span>
+                      <input
+                        value={form.company_id}
+                        onChange={(e) => setForm((prev) => ({ ...prev, company_id: e.target.value }))}
+                        placeholder="Enter company id"
+                      />
+                    </label>
+                    <label>
+                      <span>Endpoint</span>
+                      <input
+                        value={form.endpoint}
+                        onChange={(e) => setForm((prev) => ({ ...prev, endpoint: e.target.value }))}
+                        placeholder="Enter API endpoint URL"
+                      />
+                    </label>
+                    <label>
+                      <span>API Token</span>
+                      <div className="nb-input-with-actions">
+                        <input
+                          type={showToken ? 'text' : 'password'}
+                          value={form.api_token}
+                          onChange={(e) => setForm((prev) => ({ ...prev, api_token: e.target.value }))}
+                          placeholder="Enter API token"
+                        />
+                        <button
+                          type="button"
+                          className="nb-input-action-btn"
+                          onClick={() => setShowToken((prev) => !prev)}
+                          title={showToken ? 'Hide token' : 'Show token'}
+                        >
+                          {showToken ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
                     </label>
                     <label className="nb-checkbox-field">
                       <input
@@ -367,54 +401,7 @@ export default function WhatsappMediaPage() {
                       <span>Active</span>
                     </label>
                   </div>
-
-                  {!editingId && (
-                    <div className="nb-span-full" style={{ marginTop: 12 }}>
-                      <span>File *</span>
-                      <p className="nb-dropzone-sub" style={{ margin: '4px 0 8px' }}>
-                        Uploaded as-is, no compression.
-                      </p>
-                      <label
-                        className={`nb-dropzone ${dragOver ? 'drag' : ''}`}
-                        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                        onDragLeave={() => setDragOver(false)}
-                        onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files?.[0]); }}
-                      >
-                        <input type="file" onChange={(e) => handleFile(e.target.files?.[0])} />
-                        <div className="nb-dropzone-inner">
-                          <span>Drag & drop file here</span>
-                          <span className="nb-dropzone-sub">or click to browse</span>
-                        </div>
-                      </label>
-                      {selectedFile && (
-                        <div className="nb-file-preview">
-                          {filePreviewUrl ? (
-                            <img src={filePreviewUrl} alt={selectedFile.name} />
-                          ) : (
-                            <div className="nb-file-preview-icon">{selectedFile.name.split('.').pop()}</div>
-                          )}
-                          <div className="nb-file-preview-body">
-                            <div className="nb-file-preview-name">{selectedFile.name}</div>
-                            <div className="nb-file-preview-meta">{formatBytes(selectedFile.size)}</div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {editingId && selectedMedia && (
-                    <div className="nb-file-preview" style={{ marginTop: 12 }}>
-                      {selectedMedia.type === 'image' ? (
-                        <img src={selectedMedia.public_url} alt={selectedMedia.name} />
-                      ) : (
-                        <div className="nb-file-preview-icon">{selectedMedia.extn}</div>
-                      )}
-                      <div className="nb-file-preview-body">
-                        <div className="nb-file-preview-name">Existing file (unchanged)</div>
-                        <div className="nb-file-preview-meta">{formatStoredKb(selectedMedia.size)}</div>
-                      </div>
-                    </div>
-                  )}
+                  {numberWarning && <div className="nb-warning-inline">{numberWarning}</div>}
                 </section>
               </div>
 
@@ -431,38 +418,38 @@ export default function WhatsappMediaPage() {
                   Cancel
                 </button>
                 <button className="nb-add-btn" onClick={handleSave} disabled={saving} type="button">
-                  {saving ? 'Saving...' : editingId ? 'Update Media' : 'Upload Media'}
+                  {saving ? 'Saving...' : editingId ? 'Update Service Provider' : 'Save Service Provider'}
                 </button>
               </div>
             </div>
           )}
 
-          {!isFormRoute && loading && <div className="nb-empty">Loading media...</div>}
+          {!isFormRoute && loading && <div className="nb-empty">Loading service providers...</div>}
 
-          {!isFormRoute && !loading && mediaList.length === 0 && (
+          {!isFormRoute && !loading && services.length === 0 && (
             <div className="nb-empty">
               <button
                 className="nb-add-btn nb-list-add-btn"
                 type="button"
-                onClick={() => navigate('/whatsapp/media/create', { state: { userName, trust, sidebarNavKey: currentSidebarNavKey } })}
+                onClick={() => navigate('/whatsapp/service-provider/create', { state: { userName, trust, sidebarNavKey: currentSidebarNavKey } })}
               >
-                Add Media
+                Add Service Provider
               </button>
-              <div>No media found for this trust. Upload your first file.</div>
+              <div>No service provider found for this trust. Create your first one.</div>
             </div>
           )}
 
-          {!isFormRoute && !loading && mediaList.length > 0 && (
+          {!isFormRoute && !loading && services.length > 0 && (
             <section className="nb-profile-layout">
               <aside className="nb-left-panel">
                 <div className="nb-left-head">
-                  <h3>All Media</h3>
-                  <span className="nb-left-count">{mediaList.length}</span>
+                  <h3>All Service Providers</h3>
+                  <span className="nb-left-count">{services.length}</span>
                 </div>
 
                 <input
                   className="nb-left-search"
-                  placeholder="Search media..."
+                  placeholder="Search service provider..."
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
@@ -474,7 +461,7 @@ export default function WhatsappMediaPage() {
                     onClick={() => setStatusFilter('all')}
                   >
                     <span>All</span>
-                    <b>{mediaList.length}</b>
+                    <b>{services.length}</b>
                   </button>
                   <button
                     type="button"
@@ -497,32 +484,26 @@ export default function WhatsappMediaPage() {
                 <button
                   className="nb-add-btn nb-list-add-btn"
                   type="button"
-                  onClick={() => navigate('/whatsapp/media/create', { state: { userName, trust, sidebarNavKey: currentSidebarNavKey } })}
+                  onClick={() => navigate('/whatsapp/service-provider/create', { state: { userName, trust, sidebarNavKey: currentSidebarNavKey } })}
                 >
-                  Add Media
+                  Add Service Provider
                 </button>
 
                 <div className="nb-left-list">
-                  {filteredMedia.length === 0 && (
-                    <div className="nb-empty">No media matched your filters.</div>
+                  {filteredServices.length === 0 && (
+                    <div className="nb-empty">No service provider matched your filters.</div>
                   )}
-                  {filteredMedia.map((item) => (
+                  {filteredServices.map((item) => (
                     <button
                       key={item.id}
                       className={`nb-left-item ${selectedId === item.id ? 'active' : ''}`}
                       onClick={() => setSelectedId(item.id)}
                       type="button"
                     >
-                      <div className="nb-left-avatar">
-                        {item.type === 'image' && item.public_url ? (
-                          <img src={item.public_url} alt={item.name} />
-                        ) : (
-                          getInitials(item?.name)
-                        )}
-                      </div>
+                      <div className="nb-left-avatar">{getInitials(item?.name)}</div>
                       <div className="nb-left-item-body">
                         <div className="nb-left-item-title">{item.name || '-'}</div>
-                        <div className="nb-left-item-sub">{item.type || '-'} • {item.purpose || '-'}</div>
+                        <div className="nb-left-item-sub">{item.provider || '-'} • {item.purpose || '-'}</div>
                       </div>
                     </button>
                   ))}
@@ -530,36 +511,30 @@ export default function WhatsappMediaPage() {
               </aside>
 
               <section className="nb-right-panel">
-                {!selectedMedia && (
-                  <div className="nb-empty">Select a media file to view details.</div>
+                {!selectedService && (
+                  <div className="nb-empty">Select a service provider to view details.</div>
                 )}
 
-                {selectedMedia && (
+                {selectedService && (
                   <>
                     <div className="nb-profile-hero">
                       <div className="nb-profile-hero-left">
-                        <div className="nb-profile-avatar">
-                          {selectedMedia.type === 'image' && selectedMedia.public_url ? (
-                            <img src={selectedMedia.public_url} alt={selectedMedia.name} />
-                          ) : (
-                            getInitials(selectedMedia.name)
-                          )}
-                        </div>
+                        <div className="nb-profile-avatar">{getInitials(selectedService.name)}</div>
                         <div>
-                          <h3>{selectedMedia.name || '-'}</h3>
+                          <h3>{selectedService.name || '-'}</h3>
                           <div className="nb-profile-hero-actions">
                             <button
                               className="nb-secondary-btn"
                               type="button"
-                              onClick={() => handleToggleActive(selectedMedia)}
-                              disabled={updatingId === selectedMedia.id}
+                              onClick={() => handleToggleActive(selectedService)}
+                              disabled={updatingId === selectedService.id}
                             >
-                              {selectedMedia.is_active ? 'Mark Inactive' : 'Mark Active'}
+                              {selectedService.is_active ? 'Mark Inactive' : 'Mark Active'}
                             </button>
                             <button
                               className="nb-secondary-btn"
                               type="button"
-                              onClick={() => handleEdit(selectedMedia)}
+                              onClick={() => handleEdit(selectedService)}
                             >
                               Edit Details
                             </button>
@@ -573,7 +548,7 @@ export default function WhatsappMediaPage() {
                           title="Actions"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setActiveMenuId((prev) => (prev === selectedMedia.id ? null : selectedMedia.id));
+                            setActiveMenuId((prev) => (prev === selectedService.id ? null : selectedService.id));
                           }}
                         >
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -581,20 +556,20 @@ export default function WhatsappMediaPage() {
                             <path d="M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
                           </svg>
                         </button>
-                        {activeMenuId === selectedMedia.id && (
+                        {activeMenuId === selectedService.id && (
                           <div className="nb-card-menu">
                             <button
                               type="button"
-                              onClick={() => handleEdit(selectedMedia)}
-                              disabled={updatingId === selectedMedia.id}
+                              onClick={() => handleEdit(selectedService)}
+                              disabled={updatingId === selectedService.id}
                             >
                               Edit Details
                             </button>
                             <button
                               type="button"
                               className="danger"
-                              onClick={() => handleDelete(selectedMedia)}
-                              disabled={updatingId === selectedMedia.id}
+                              onClick={() => handleDelete(selectedService)}
+                              disabled={updatingId === selectedService.id}
                             >
                               Delete
                             </button>
@@ -605,24 +580,18 @@ export default function WhatsappMediaPage() {
 
                     <div className="nb-profile-details">
                       <div className="nb-profile-details-head">
-                        <h3>Media Details</h3>
+                        <h3>Service Provider Details</h3>
                       </div>
                       <div className="nb-profile-detail-grid">
-                        <div><span>Purpose</span><strong>{selectedMedia.purpose || '-'}</strong></div>
-                        <div><span>Type</span><strong>{selectedMedia.type || '-'}</strong></div>
-                        <div><span>Extension</span><strong>{selectedMedia.extn || '-'}</strong></div>
-                        <div><span>Size</span><strong>{formatStoredKb(selectedMedia.size)}</strong></div>
-                        <div><span>Status</span><strong>{selectedMedia.is_active ? 'Active' : 'Inactive'}</strong></div>
-                        <div>
-                          <span>Public URL</span>
-                          <strong>
-                            {selectedMedia.public_url ? (
-                              <a href={selectedMedia.public_url} target="_blank" rel="noreferrer">Open file</a>
-                            ) : '-'}
-                          </strong>
-                        </div>
-                        <div><span>Created Date</span><strong>{formatDate(selectedMedia.created_at)}</strong></div>
-                        <div><span>Updated Date</span><strong>{formatDate(selectedMedia.updated_at)}</strong></div>
+                        <div><span>Provider</span><strong>{selectedService.provider || '-'}</strong></div>
+                        <div><span>Purpose</span><strong>{selectedService.purpose || '-'}</strong></div>
+                        <div><span>WhatsApp Number</span><strong>{selectedService.wa_number || '-'}</strong></div>
+                        <div><span>Company Id</span><strong>{selectedService.company_id || '-'}</strong></div>
+                        <div><span>Endpoint</span><strong>{selectedService.endpoint || '-'}</strong></div>
+                        <div><span>API Token</span><strong>{maskToken(selectedService.api_token)}</strong></div>
+                        <div><span>Status</span><strong>{selectedService.is_active ? 'Active' : 'Inactive'}</strong></div>
+                        <div><span>Created Date</span><strong>{formatDate(selectedService.created_at)}</strong></div>
+                        <div><span>Updated Date</span><strong>{formatDate(selectedService.updated_at)}</strong></div>
                       </div>
                     </div>
                   </>

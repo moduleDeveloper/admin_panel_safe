@@ -1,17 +1,17 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import PageHeader from '../components/PageHeader';
-import Sidebar from '../components/Sidebar';
-import ServiceProviderQuickAddModal from '../components/ServiceProviderQuickAddModal';
-import Pagination, { PAGE_SIZE } from '../components/Pagination';
-import { fetchWaServicesByTrust } from '../services/waServiceProviderService';
-import { createWaMedia, updateWaMedia, uploadWaMediaFile, replaceWaMediaFile } from '../services/waMediaService';
+import PageHeader from '../../components/PageHeader';
+import Sidebar from '../../components/Sidebar';
+import ServiceProviderQuickAddModal from '../../components/whatsapp/ServiceProviderQuickAddModal';
+import Pagination, { PAGE_SIZE } from '../../components/Pagination';
+import { fetchWaServicesByTrust } from '../../services/whatsapp/waServiceProviderService';
+import { createWaMedia, updateWaMedia, uploadWaMediaFile, replaceWaMediaFile } from '../../services/whatsapp/waMediaService';
 import {
   createWaTemplate,
   fetchWaTemplatesByTrust,
   updateWaTemplate,
-} from '../services/waTemplateService';
-import './NoticeboardPage.css';
+} from '../../services/whatsapp/waTemplateService';
+import '../NoticeboardPage.css';
 
 function formatDate(value) {
   if (!value) return '-';

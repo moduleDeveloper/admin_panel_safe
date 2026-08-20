@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { fetchWaTempColumns } from '../services/waTemplateService';
+import { fetchWaTempColumns } from '../../services/whatsapp/waTemplateService';
 
 // With `cellDates: true`, Excel cells formatted as Date/Time come through as
 // JS Date objects instead of raw serial numbers (e.g. 46305, 0.5). SheetJS

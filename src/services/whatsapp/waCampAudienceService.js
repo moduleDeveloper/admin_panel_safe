@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabase';
-import { cachedQuery } from './requestCache';
+import { supabase } from '../../lib/supabase';
+import { cachedQuery } from '../requestCache';
 
 const TABLE_NAME = 'WaCampAudience';
 const CAMP_EMBED = 'WaCamp!inner(id, trust_id, scheduled_at, status, WaTemp(id, name, language))';

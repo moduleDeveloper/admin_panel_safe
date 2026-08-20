@@ -1,13 +1,13 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import PageHeader from '../components/PageHeader';
-import Sidebar from '../components/Sidebar';
-import { fetchWaCampAudienceByCampaign } from '../services/waCampAudienceService';
-import { fetchWaCampsByTrust } from '../services/waCampService';
-import { fetchWaServicesByTrust } from '../services/waServiceProviderService';
-import { fetchWaTemplatesByTrust } from '../services/waTemplateService';
-import Pagination, { PAGE_SIZE } from '../components/Pagination';
-import './NoticeboardPage.css';
+import PageHeader from '../../components/PageHeader';
+import Sidebar from '../../components/Sidebar';
+import { fetchWaCampAudienceByCampaign } from '../../services/whatsapp/waCampAudienceService';
+import { fetchWaCampsByTrust } from '../../services/whatsapp/waCampService';
+import { fetchWaServicesByTrust } from '../../services/whatsapp/waServiceProviderService';
+import { fetchWaTemplatesByTrust } from '../../services/whatsapp/waTemplateService';
+import Pagination, { PAGE_SIZE } from '../../components/Pagination';
+import '../NoticeboardPage.css';
 
 const STATUS_OPTIONS = ['pending', 'processing', 'sent', 'delivered', 'failed', 'permanently_failed'];
 const CAMPAIGN_STATUS_OPTIONS = ['pending', 'processing', 'sent', 'delivered', 'failed', 'cancelled'];

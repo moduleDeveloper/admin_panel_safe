@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabase';
-import { cachedQuery, invalidateCache } from './requestCache';
+import { supabase } from '../../lib/supabase';
+import { cachedQuery, invalidateCache } from '../requestCache';
 
 const BUCKET = 'wa-media';
 

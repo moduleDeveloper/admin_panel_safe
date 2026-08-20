@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getWaTemplatesHandler, saveWaTemplateHandler } from '../controllers/waTemplateController.js';
+import { getWaTemplatesHandler, saveWaTemplateHandler } from '../../controllers/whatsapp/waTemplateController.js';
 
 const router = Router();
 

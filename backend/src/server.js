@@ -5,7 +5,7 @@ import { config } from './config/config.js';
 import videoRoutes from './routes/videoRoutes.js';
 import socialRoutes from './routes/socialRoutes.js';
 import leadsRoutes from './routes/leadsRoutes.js';
-import waTemplateRoutes from './routes/waTemplateRoutes.js';
+import waTemplateRoutes from './routes/whatsapp/waTemplateRoutes.js';
 
 globalThis.WebSocket = WebSocket;
 

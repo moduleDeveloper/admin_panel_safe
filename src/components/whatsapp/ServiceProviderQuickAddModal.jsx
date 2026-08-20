@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { createWaService, updateWaService } from '../services/waServiceProviderService';
-import '../pages/NoticeboardPage.css';
+import { createWaService, updateWaService } from '../../services/whatsapp/waServiceProviderService';
+import '../../pages/NoticeboardPage.css';
 
 function sanitizeDigits(value, maxLength = 10) {
   return String(value ?? '').replace(/\D/g, '').slice(0, maxLength);

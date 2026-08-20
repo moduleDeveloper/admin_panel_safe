@@ -21,11 +21,25 @@ const EMPTY_FORM = {
   secret_code: '',
 };
 
+function withImpliedView(row) {
+  const canAdd = !!row.can_add;
+  const canEdit = !!row.can_edit;
+  const canDelete = !!row.can_delete;
+
+  return {
+    ...row,
+    can_view: !!row.can_view || canAdd || canEdit || canDelete,
+    can_add: canAdd,
+    can_edit: canEdit,
+    can_delete: canDelete,
+  };
+}
+
 function buildPermissionRows(features = [], roles = []) {
   const roleByFeatureId = new Map((roles || []).map((role) => [String(role.feature_id), role]));
   return (features || []).map((feature) => {
     const linkedRole = roleByFeatureId.get(String(feature.id));
-    return {
+    return withImpliedView({
       feature_id: feature.id,
       feature_name: feature.name || 'Untitled Feature',
       feature_subname: feature.subname || '',
@@ -33,7 +47,7 @@ function buildPermissionRows(features = [], roles = []) {
       can_edit: !!linkedRole?.can_edit,
       can_delete: !!linkedRole?.can_delete,
       can_add: !!linkedRole?.can_add,
-    };
+    });
   });
 }
 
@@ -101,7 +115,7 @@ export default function UserManagementPage() {
 
     const [usersResult, featuresResult] = await Promise.all([
       fetchUsersByTrustId(trustId),
-      fetchFeatureCatalog(),
+      fetchFeatureCatalog(trustId),
     ]);
 
     if (usersResult.error) {
@@ -199,17 +213,18 @@ export default function UserManagementPage() {
 
   function handlePermissionToggle(featureId, key) {
     setPermissionRows((prev) =>
-      prev.map((row) =>
-        row.feature_id === featureId
-          ? { ...row, [key]: !row[key] }
-          : row,
-      ),
+      prev.map((row) => {
+        if (row.feature_id !== featureId) return row;
+
+        const nextRow = { ...row, [key]: !row[key] };
+        return withImpliedView(nextRow);
+      }),
     );
   }
 
   function handleColumnToggle(key, checked) {
     setPermissionRows((prev) =>
-      prev.map((row) => ({
+      prev.map((row) => withImpliedView({
         ...row,
         [key]: checked,
       })),
@@ -511,7 +526,7 @@ export default function UserManagementPage() {
                       <tbody>
                         {!features.length ? (
                           <tr>
-                            <td colSpan={5} className="um-empty">No features available.</td>
+                            <td colSpan={5} className="um-empty">No enabled features available.</td>
                           </tr>
                         ) : (
                           permissionRows.map((row) => (

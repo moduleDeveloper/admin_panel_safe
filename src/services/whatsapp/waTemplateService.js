@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabase';
-import { cachedQuery, invalidateCache } from './requestCache.js';
+import { supabase } from '../../lib/supabase';
+import { cachedQuery, invalidateCache } from '../requestCache.js';
 
 function normalizeApiBase(rawBase) {
   const base = String(rawBase || 'http://localhost:8080').trim().replace(/\/+$/, '');

@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabase';
-import { cachedQuery, invalidateCache } from './requestCache';
+import { supabase } from '../../lib/supabase';
+import { cachedQuery, invalidateCache } from '../requestCache';
 
 // New rows (created via wa_camp_curi) only have a combined `scheduled_at`
 // column — split it into date/time strings so the existing UI keeps working.
