@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../../lib/supabaseAdmin.js';
-import { badRequest } from '../utils/helpers.js';
+import { badRequest } from '../../utils/helpers.js';
 
 const TABLE_NAME = 'WaTemp';
 const VAR_TABLE_NAME = 'WaTempVar';
