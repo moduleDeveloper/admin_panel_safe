@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
@@ -199,6 +200,10 @@ async function fetchAllRegMembers(supabaseClient, trustId) {
 
 export default function MemberImport({ onComplete }) {
   console.log('MemberImport rendered');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { userName = 'Admin', superuserId = null } = location.state || {};
+  const currentSidebarNavKey = location.state?.sidebarNavKey || 'dashboard';
   const [screen, setScreen] = useState('upload');
   const [trusts, setTrusts] = useState([]);
   const [selectedTrustId, setSelectedTrustId] = useState('');
@@ -210,6 +215,7 @@ export default function MemberImport({ onComplete }) {
   const [toast, setToast] = useState(null);
   const [isBusy, setIsBusy] = useState(false);
   const [retryAction, setRetryAction] = useState(null);
+  const [replacePrompt, setReplacePrompt] = useState({ open: false, nextFile: null });
   const fileInputRef = useRef(null);
 
   const [allRows, setAllRows] = useState([]);
@@ -244,6 +250,21 @@ export default function MemberImport({ onComplete }) {
     () => trusts.find((t) => t.id === selectedTrustId) || null,
     [trusts, selectedTrustId]
   );
+
+  const goToMembersList = () => {
+    if (onComplete) {
+      onComplete();
+      return;
+    }
+    navigate('/members?page=1', {
+      state: {
+        userName,
+        trust: selectedTrust,
+        superuserId,
+        sidebarNavKey: currentSidebarNavKey
+      }
+    });
+  };
 
   useEffect(() => {
     const saved = sessionStorage.getItem(MEMBER_IMPORT_STATE_KEY);
@@ -385,6 +406,43 @@ export default function MemberImport({ onComplete }) {
     setDismissedRows([]);
     setShowFixPanel(false);
     setParseErrorRows([]);
+  };
+
+  const requestFileSelection = () => {
+    if (file) {
+      setReplacePrompt({ open: true, nextFile: null });
+      return;
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleDroppedFile = (f) => {
+    if (!f) return;
+    if (file) {
+      setReplacePrompt({ open: true, nextFile: f });
+      return;
+    }
+    handleFileSelection(f);
+  };
+
+  const closeReplacePrompt = () => {
+    setReplacePrompt({ open: false, nextFile: null });
+  };
+
+  const confirmReplaceFile = () => {
+    const nextFile = replacePrompt.nextFile;
+    closeReplacePrompt();
+    if (nextFile) {
+      handleFileSelection(nextFile);
+      return;
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
   };
 
   const parseRowsFromFile = async (inputFile) => {
@@ -704,6 +762,25 @@ export default function MemberImport({ onComplete }) {
     contact: row.contact || null
   });
 
+  const handleDownloadFormat = () => {
+    const headers = [
+      'Name',
+      'Address Home',
+      'Company Name',
+      'Address Office',
+      'Resident Landline',
+      'Office Landline',
+      'Mobile',
+      'Email',
+      'Membership Number',
+      'Role'
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Members Format');
+    XLSX.writeFile(workbook, 'bulk_members_upload_format.xlsx');
+  };
+
   const retryFailedLinks = async () => {
     if (!insertLog.regMembersFailed.length) return;
     setIsBusy(true);
@@ -868,6 +945,7 @@ export default function MemberImport({ onComplete }) {
         ambiguousResolved: ambiguousRows.length
       });
       sessionStorage.removeItem(MEMBER_IMPORT_STATE_KEY);
+      sessionStorage.removeItem(`members_page_cache_${selectedTrust.id}`);
       setScreen('done');
     } catch (error) {
       setToast({ type: 'error', message: `Insert failed: ${error.message}` });
@@ -925,6 +1003,50 @@ export default function MemberImport({ onComplete }) {
 
   return (
     <div className="min-h-screen p-4 md:p-10" style={{ background: '#F8F9FC', color: '#1a1a2e' }}>
+      {replacePrompt.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: 'rgba(15, 23, 42, 0.45)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="replace-file-title"
+        >
+          <div
+            className="w-full max-w-md p-6"
+            style={{ background: '#FFFFFF', borderRadius: '14px', boxShadow: '0 24px 60px rgba(15, 23, 42, 0.22)', border: '1px solid #E8E8F0' }}
+          >
+            <h3 id="replace-file-title" className="text-2xl font-semibold" style={{ color: '#1a1a2e' }}>
+              Replace selected file?
+            </h3>
+            <p className="mt-3 text-base leading-7" style={{ color: '#5F5E5A' }}>
+              A file is already selected. Replacing it will clear the current upload file and any parsed rows.
+            </p>
+            {file && (
+              <p className="mt-4 px-3 py-2 text-base" style={{ background: '#F8F9FC', color: '#1a1a2e', borderRadius: '8px', wordBreak: 'break-word' }}>
+                Current file: {file.name}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                className="px-4 py-2 text-base"
+                style={{ background: '#FFFFFF', border: '1px solid #ddd', color: '#555', borderRadius: '8px' }}
+                onClick={closeReplacePrompt}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 text-base"
+                style={{ background: '#534AB7', border: '1px solid #534AB7', color: '#FFFFFF', borderRadius: '8px', fontWeight: 600 }}
+                onClick={confirmReplaceFile}
+              >
+                Replace file
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-6xl mx-auto rounded-2xl p-5 md:p-8" style={{ background: '#FFFFFF', border: '1px solid #EEEEEE', borderRadius: '14px' }}>
         {toast && (
           <div
@@ -1000,7 +1122,7 @@ export default function MemberImport({ onComplete }) {
                     borderRadius: '14px',
                     transition: 'border-color 0.2s'
                   }}
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={requestFileSelection}
                   onDragOver={(e) => {
                     e.preventDefault();
                     setDragging(true);
@@ -1009,26 +1131,56 @@ export default function MemberImport({ onComplete }) {
                   onDrop={(e) => {
                     e.preventDefault();
                     setDragging(false);
-                    handleFileSelection(e.dataTransfer.files?.[0]);
+                    handleDroppedFile(e.dataTransfer.files?.[0]);
                   }}
                 >
-                  <p style={{ color: '#534AB7', fontSize: '32px', lineHeight: 1 }}>⇪</p>
-                  <p className="text-2xl mt-4">Drag & drop your Excel or CSV file here</p>
-                  <p className="text-zinc-400 mt-2">.xlsx or .csv only — max 5MB</p>
+                  {!file && (
+                    <p style={{ color: '#534AB7', fontSize: '32px', lineHeight: 1 }}>⇪</p>
+                  )}
+                  {!file ? (
+                    <p className="text-2xl mt-4">Drag & drop your Excel or CSV file here</p>
+                  ) : (
+                    null
+                  )}
+                  {!file && (
+                    <p className="text-zinc-400 mt-2">.xlsx or .csv only — max 5MB</p>
+                  )}
+
+                  {file && (
+                    <p
+                      className="mt-4 mr-8 inline-flex max-w-full items-center justify-center px-3 py-3 text-md"
+                      style={{ background: '#E6F9F0', color: '#0F6E56', borderRadius: '8px', wordBreak: 'break-word' }}
+                    >
+                      Selected: {file.name} ({getFileSizeText(file.size)})
+                    </p>
+                  )}
                   <button
                     className="mt-5 px-6 py-2 rounded-xl border border-zinc-500"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      requestFileSelection();
+                    }}
                     type="button"
                   >
-                    Browse file
+                    {file ? 'Replace file' : 'Browse file'}
                   </button>
-                  {file && <p className="mt-4 text-sm text-zinc-300">{file.name} ({getFileSizeText(file.size)})</p>}
+                  
                   {uploadError && <p className="mt-4 text-sm text-red-400">{uploadError}</p>}
                 </div>
               </div>
 
               <div className="mt-6 rounded-xl p-4" style={{ background: '#F8F9FC' }}>
-                <p className="mb-3" style={{ color: '#1a1a2e' }}>Required columns in your file:</p>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <p style={{ color: '#1a1a2e' }}>Required columns in your file:</p>
+                  <button
+                    type="button"
+                    className="px-4 py-2 text-sm"
+                    style={{ background: '#FFFFFF', border: '1px solid #534AB7', color: '#534AB7', borderRadius: '8px', fontWeight: 600 }}
+                    onClick={handleDownloadFormat}
+                  >
+                    Download format
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <span className="px-3 py-1" style={{ background: '#EEEDFE', color: '#534AB7', borderRadius: '20px', fontSize: '12px', fontWeight: 500, padding: '4px 12px' }}>Name</span>
                   <span className="px-3 py-1" style={{ background: '#EEEDFE', color: '#534AB7', borderRadius: '20px', fontSize: '12px', fontWeight: 500, padding: '4px 12px' }}>Mobile</span>
@@ -1758,7 +1910,7 @@ export default function MemberImport({ onComplete }) {
               <button
                 className="px-6 py-3"
                 style={{ background: '#0F6E56', color: '#FFFFFF', border: 'none', borderRadius: '8px' }}
-                onClick={() => (onComplete ? onComplete() : (window.location.href = '/members'))}
+                onClick={goToMembersList}
                 type="button"
               >
                 View members list
