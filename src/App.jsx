@@ -25,7 +25,7 @@ const EventDetailPage = lazy(() => import('./pages/EventDetailPage'));
 const FacilitiesPage = lazy(() => import('./pages/FacilitiesPage'));
 const ContactUsPage = lazy(() => import('./pages/ContactUsPage'));
 const DonationsPage = lazy(() => import('./pages/DonationsPage'));
-const ThemePage = lazy(() => import('./pages/ThemePage'));
+const ThemePage = lazy(() => import('./pages/theme/ThemePage'));
 const FeatureControlPage = lazy(() => import('./pages/FeatureControlPage'));
 const SubFeatureControlPage = lazy(() => import('./pages/SubFeatureControlPage'));
 const Features20Page = lazy(() => import('./pages/Features20Page'));

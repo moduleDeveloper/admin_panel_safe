@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import PageHeader from '../components/PageHeader';
-import Sidebar from '../components/Sidebar';
-import { fetchTrustDetails } from '../services/trustService';
-import { assignTemplateToTrust, createTemplate, fetchTemplates, updateTemplate } from '../services/themeService';
+import PageHeader from '../../components/PageHeader';
+import Sidebar from '../../components/Sidebar';
+import { fetchTrustDetails } from '../../services/trustService';
+import { fetchFeatureFlags } from '../../services/featuresService';
+import { assignTemplateToTrust, createTemplate, fetchTemplates, updateTemplate } from '../../services/themeService';
 import './ThemePage.css';
 
 const EMPTY_FORM = {
@@ -11,11 +12,18 @@ const EMPTY_FORM = {
   description: '',
   template_key: 'mahila',
   theme_config: {},
-  home_layout: '["trustList","sponsors","marquee","gallery","quickActions"]',
+  home_layout: '["trustList","marquee","sponsors","gallery","quickActions"]',
   custom_css: '',
   is_active: true,
 };
-const DEFAULT_NEW_HOME_LAYOUT = ['trustList', 'sponsors', 'marquee', 'gallery', 'quickActions'];
+const DEFAULT_NEW_HOME_LAYOUT = ['trustList', 'marquee', 'sponsors', 'gallery', 'quickActions'];
+const DEFAULT_HOME_LAYOUT_MODES = { gallery: 'content', sponsors: 'box' };
+const HOME_LAYOUT_MODE_KEYS = new Set(['gallery', 'sponsors']);
+const HOME_LAYOUT_MODE_OPTIONS = ['content', 'box'];
+const supportsHomeLayoutMode = (key) => {
+  const normalizedKey = normalizeFeatureLayoutName(key);
+  return HOME_LAYOUT_MODE_KEYS.has(normalizedKey) || !DEFAULT_HOME_LAYOUT_KEY_SET.has(normalizedKey);
+};
 
 const pretty = (value, fallback) => JSON.stringify(value ?? fallback, null, 2);
 const DEFAULT_ANIMATIONS = { cards: 'fadeUp', navbar: 'fadeSlideDown', gallery: 'zoomIn' };
@@ -135,23 +143,63 @@ const ANIMATION_OPTIONS = {
   gallery: ['zoomIn', 'fadeIn', 'slideUp', 'none'],
 };
 const HEX_COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
-const HOME_LAYOUT_OPTIONS = [
+const DEFAULT_HOME_LAYOUT_OPTIONS = [
   { key: 'gallery', label: 'Gallery' },
   { key: 'quickActions', label: 'Quick Actions' },
   { key: 'sponsors', label: 'Sponsors' },
   { key: 'marquee', label: 'Marquee' },
   { key: 'trustList', label: 'Trust List' },
 ];
+const HOME_LAYOUT_FEATURE_RULES = [
+  { key: 'gallery', label: 'Gallery', featureNames: ['feature_gallery', 'gallery'] },
+  { key: 'quickActions', label: 'Quick Actions', featureNames: ['feature_quick_actions', 'feature_quickactions', 'quick_actions', 'quickactions', 'quick actions'] },
+  { key: 'sponsors', label: 'Sponsors', featureNames: ['feature_sponsors', 'sponsors', 'sponsor'] },
+  { key: 'marquee', label: 'Marquee', featureNames: ['feature_marquee', 'marquee'] },
+  { key: 'trustList', label: 'Trust List', featureNames: ['feature_trustlist', 'feature_trust_list', 'trustlist', 'trust_list', 'trust list'] },
+];
+const DEFAULT_HOME_LAYOUT_KEY_SET = new Set(DEFAULT_HOME_LAYOUT_OPTIONS.map((item) => item.key));
 const normalizePickerColor = (value, fallback) => (HEX_COLOR_RE.test(String(value || '').trim()) ? String(value).trim() : fallback);
 const safeText = (value, fallback = '') => (typeof value === 'string' ? value : fallback);
-const createLayoutOrderMap = (layout = []) => {
+const normalizeFeatureLayoutName = (value) => String(value || '').trim();
+const normalizeFeatureNameKey = (value) => normalizeFeatureLayoutName(value).toLowerCase().replace(/[\s-]+/g, '_');
+const createLayoutOrderMap = (layout = [], options = DEFAULT_HOME_LAYOUT_OPTIONS) => {
   const parsedLayout = Array.isArray(layout) ? layout : [];
   const nextMap = {};
-  HOME_LAYOUT_OPTIONS.forEach((item) => {
+  options.forEach((item) => {
     const index = parsedLayout.findIndex((entry) => String(entry || '').trim() === item.key);
     nextMap[item.key] = index >= 0 ? index + 1 : '';
   });
   return nextMap;
+};
+const buildDefaultHomeLayoutOptions = (enabledFeatures = []) => {
+  const enabledNameSet = new Set((enabledFeatures || []).map((feature) => normalizeFeatureNameKey(feature.name)).filter(Boolean));
+  const matchedOptions = HOME_LAYOUT_FEATURE_RULES.filter((rule) =>
+    rule.featureNames.some((name) => enabledNameSet.has(normalizeFeatureNameKey(name))) ||
+    (rule.key === 'quickActions' && Array.from(enabledNameSet).some((name) => name.includes('quick') && name.includes('action')))
+  ).map(({ key, label }) => ({ key, label }));
+  return matchedOptions.length ? matchedOptions : DEFAULT_HOME_LAYOUT_OPTIONS;
+};
+const buildLayoutOptions = (layout = [], orderMap = {}, defaultOptions = DEFAULT_HOME_LAYOUT_OPTIONS) => {
+  const savedDefaultOptions = (Array.isArray(layout) ? layout : [])
+    .map((entry) => normalizeFeatureLayoutName(entry))
+    .filter((entry) => DEFAULT_HOME_LAYOUT_KEY_SET.has(entry))
+    .map((key) => DEFAULT_HOME_LAYOUT_OPTIONS.find((item) => item.key === key))
+    .filter(Boolean);
+  const savedFeatureOptions = (Array.isArray(layout) ? layout : [])
+    .map((entry) => normalizeFeatureLayoutName(entry))
+    .filter((entry) => entry && !DEFAULT_HOME_LAYOUT_KEY_SET.has(entry))
+    .map((name) => ({ key: name, label: name, source: 'feature' }));
+  const pendingFeatureOptions = Object.entries(orderMap || {})
+    .filter(([key, value]) => {
+      const featureName = normalizeFeatureLayoutName(key);
+      return featureName && !DEFAULT_HOME_LAYOUT_KEY_SET.has(featureName) && Number(value) > 0;
+    })
+    .map(([name]) => ({ key: name, label: name, source: 'feature' }));
+  const optionByKey = new Map();
+  [...defaultOptions, ...savedDefaultOptions, ...savedFeatureOptions, ...pendingFeatureOptions].forEach((item) => {
+    if (!optionByKey.has(item.key)) optionByKey.set(item.key, item);
+  });
+  return Array.from(optionByKey.values());
 };
 const clampChannel = (value) => Math.max(0, Math.min(255, Math.round(value)));
 const expandHex = (value = '') => {
@@ -312,6 +360,7 @@ export default function ThemePage() {
   const [showForm, setShowForm] = useState(false);
   const [isViewMode, setIsViewMode] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [showFeaturePicker, setShowFeaturePicker] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [detailId, setDetailId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -321,6 +370,8 @@ export default function ThemePage() {
   const [themeConfigForm, setThemeConfigForm] = useState(buildThemeConfigForm(DEFAULT_THEME_SECTION_CONFIG));
   const [animationConfig, setAnimationConfig] = useState(DEFAULT_ANIMATIONS);
   const [homeLayoutOrder, setHomeLayoutOrder] = useState(createLayoutOrderMap(DEFAULT_NEW_HOME_LAYOUT));
+  const [homeLayoutModes, setHomeLayoutModes] = useState(DEFAULT_HOME_LAYOUT_MODES);
+  const [enabledFeatures, setEnabledFeatures] = useState([]);
 
   useEffect(() => {
     if (!trustId) navigate('/dashboard', { replace: true, state: { userName, trust } });
@@ -344,6 +395,27 @@ export default function ThemePage() {
     load();
   }, [trustId, trust]);
 
+  useEffect(() => {
+    const loadEnabledFeatures = async () => {
+      if (!trustId) return;
+      const { data, error: featuresErr } = await fetchFeatureFlags(trustId);
+      if (featuresErr) {
+        setError(featuresErr.message || 'Unable to load enabled features.');
+        return;
+      }
+      const nextFeatures = (data || [])
+        .filter((flag) => flag.is_enabled)
+        .map((flag) => ({
+          id: flag.features_id || flag.features?.id || flag.id,
+          name: normalizeFeatureLayoutName(flag.features?.name || flag.name),
+          route: flag.route || '',
+        }))
+        .filter((feature) => feature.name);
+      setEnabledFeatures(nextFeatures);
+    };
+    loadEnabledFeatures();
+  }, [trustId]);
+
 
 
   const filtered = useMemo(() => {
@@ -366,12 +438,37 @@ export default function ThemePage() {
   const selectedTemplate = useMemo(() => templates.find((item) => item.id === selectedId) || null, [templates, selectedId]);
   const detailTemplate = useMemo(() => templates.find((item) => item.id === detailId) || null, [templates, detailId]);
   const canEdit = (item) => String(item?.trust_id || '') === String(trustId || '');
+  const defaultHomeLayoutOptions = useMemo(
+    () => buildDefaultHomeLayoutOptions(enabledFeatures),
+    [enabledFeatures]
+  );
+  const currentHomeLayout = useMemo(() => {
+    try {
+      const parsed = JSON.parse(form.home_layout || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [form.home_layout]);
+  const layoutOptions = useMemo(
+    () => buildLayoutOptions(currentHomeLayout, homeLayoutOrder, defaultHomeLayoutOptions),
+    [currentHomeLayout, defaultHomeLayoutOptions, homeLayoutOrder]
+  );
+  const featureOptionsToAdd = useMemo(() => {
+    const layoutSet = new Set(currentHomeLayout.map((entry) => normalizeFeatureLayoutName(entry)).filter(Boolean));
+    return enabledFeatures.filter((feature) => feature.name && !layoutSet.has(feature.name));
+  }, [currentHomeLayout, enabledFeatures]);
+
   useEffect(() => {
     if (!selectedTemplate) {
       setForm(EMPTY_FORM);
       setThemeConfigForm(buildThemeConfigForm(DEFAULT_THEME_SECTION_CONFIG));
       setAnimationConfig(DEFAULT_ANIMATIONS);
-      setHomeLayoutOrder(createLayoutOrderMap(DEFAULT_NEW_HOME_LAYOUT));
+      setHomeLayoutOrder(createLayoutOrderMap(
+        DEFAULT_NEW_HOME_LAYOUT,
+        buildLayoutOptions(DEFAULT_NEW_HOME_LAYOUT, {}, defaultHomeLayoutOptions)
+      ));
+      setHomeLayoutModes(DEFAULT_HOME_LAYOUT_MODES);
       return;
     }
     const nextHomeLayout = Array.isArray(selectedTemplate.home_layout)
@@ -391,8 +488,12 @@ export default function ThemePage() {
       navbar: safeText(selectedTemplate?.animations?.navbar, DEFAULT_ANIMATIONS.navbar) || DEFAULT_ANIMATIONS.navbar,
       gallery: safeText(selectedTemplate?.animations?.gallery, DEFAULT_ANIMATIONS.gallery) || DEFAULT_ANIMATIONS.gallery,
     });
-    setHomeLayoutOrder(createLayoutOrderMap(nextHomeLayout));
-  }, [selectedTemplate]);
+    setHomeLayoutOrder(createLayoutOrderMap(nextHomeLayout, buildLayoutOptions(nextHomeLayout, {}, defaultHomeLayoutOptions)));
+    setHomeLayoutModes({
+      ...DEFAULT_HOME_LAYOUT_MODES,
+      ...(selectedTemplate?.home_layout_modes && typeof selectedTemplate.home_layout_modes === 'object' ? selectedTemplate.home_layout_modes : {}),
+    });
+  }, [defaultHomeLayoutOptions, selectedTemplate]);
 
   const openCreate = () => {
     setSelectedId(null);
@@ -400,8 +501,13 @@ export default function ThemePage() {
     setForm(EMPTY_FORM);
     setThemeConfigForm(buildThemeConfigForm(DEFAULT_THEME_SECTION_CONFIG));
     setAnimationConfig(DEFAULT_ANIMATIONS);
-    setHomeLayoutOrder(createLayoutOrderMap(DEFAULT_NEW_HOME_LAYOUT));
+    setHomeLayoutOrder(createLayoutOrderMap(
+      DEFAULT_NEW_HOME_LAYOUT,
+      buildLayoutOptions(DEFAULT_NEW_HOME_LAYOUT, {}, defaultHomeLayoutOptions)
+    ));
+    setHomeLayoutModes(DEFAULT_HOME_LAYOUT_MODES);
     setSaveError('');
+    setShowFeaturePicker(false);
     setShowForm(true);
     setShowPicker(false);
   };
@@ -434,6 +540,7 @@ export default function ThemePage() {
     setSelectedId(null);
     setSaveError('');
     setIsViewMode(false);
+    setShowFeaturePicker(false);
   };
 
   const handleAssign = async (template) => {
@@ -461,7 +568,7 @@ export default function ThemePage() {
       return;
     }
     let homeLayout;
-    homeLayout = HOME_LAYOUT_OPTIONS
+    homeLayout = layoutOptions
       .map((item) => ({
         key: item.key,
         order: Number(homeLayoutOrder[item.key]) || 0,
@@ -473,6 +580,11 @@ export default function ThemePage() {
       setSaveError('Home layout mein kam se kam ek section order dena zaroori hai.');
       return;
     }
+    const homeLayoutSet = new Set(homeLayout);
+    const homeLayoutModesPayload = Object.fromEntries(
+      Object.entries(homeLayoutModes)
+        .filter(([key, value]) => homeLayoutSet.has(key) && supportsHomeLayoutMode(key) && HOME_LAYOUT_MODE_OPTIONS.includes(value))
+    );
     const animations = {
       cards: animationConfig.cards || DEFAULT_ANIMATIONS.cards,
       navbar: animationConfig.navbar || DEFAULT_ANIMATIONS.navbar,
@@ -494,6 +606,7 @@ export default function ThemePage() {
       ...legacyThemeColors,
       theme_config: autoNormalizedThemeConfig,
       home_layout: homeLayout,
+      home_layout_modes: homeLayoutModesPayload,
       animations,
       custom_css: form.custom_css || '',
       is_active: !!form.is_active,
@@ -531,6 +644,44 @@ export default function ThemePage() {
       const nextSection = setNestedValue(prev[sectionKey] || {}, fieldKey, value);
       return { ...prev, [sectionKey]: nextSection };
     });
+  };
+
+  const handleAddFeatureToLayout = (feature) => {
+    const featureName = normalizeFeatureLayoutName(feature?.name);
+    if (!featureName) return;
+    const maxOrder = Math.max(
+      0,
+      ...Object.values(homeLayoutOrder).map((value) => Number(value) || 0)
+    );
+    setHomeLayoutOrder((prev) => ({
+      ...prev,
+      [featureName]: maxOrder + 1,
+    }));
+    setHomeLayoutModes((prev) => ({
+      ...prev,
+      [featureName]: prev[featureName] || 'content',
+    }));
+    setShowFeaturePicker(false);
+  };
+
+  const handleRemoveFeatureFromLayout = (featureName) => {
+    const normalizedName = normalizeFeatureLayoutName(featureName);
+    if (!normalizedName || DEFAULT_HOME_LAYOUT_KEY_SET.has(normalizedName)) return;
+    setHomeLayoutOrder((prev) => {
+      const next = { ...prev };
+      delete next[normalizedName];
+      return next;
+    });
+    setHomeLayoutModes((prev) => {
+      const next = { ...prev };
+      delete next[normalizedName];
+      return next;
+    });
+  };
+
+  const updateHomeLayoutMode = (key, mode) => {
+    if (!supportsHomeLayoutMode(key) || !HOME_LAYOUT_MODE_OPTIONS.includes(mode)) return;
+    setHomeLayoutModes((prev) => ({ ...prev, [key]: mode }));
   };
 
   const renderThemeField = (sectionKey, field) => {
@@ -750,26 +901,67 @@ export default function ThemePage() {
 
   const renderHomeLayoutField = () => (
     <div className="theme-field theme-span-2" key="home_layout_order">
-      <span>Home Layout Order</span>
-      <div className="theme-layout-order-card">
+      <div className="theme-layout-order-title">
+        <span>Home Layout Order</span>
+        {!isViewMode && (
+          <button
+            type="button"
+            className="theme-icon-btn"
+            onClick={() => setShowFeaturePicker(true)}
+            disabled={!featureOptionsToAdd.length}
+            title={featureOptionsToAdd.length ? 'Add enabled feature' : 'No enabled features available to add'}
+          >
+            Add
+          </button>
+        )}
+      </div>
+      <div className="theme-layout-order-card theme-home-layout-card">
         <div className="theme-layout-order-list">
-          {HOME_LAYOUT_OPTIONS.map((item) => (
+          {layoutOptions.map((item) => (
             <label className="theme-layout-order-row" key={item.key}>
               <div className="theme-layout-order-copy">
                 <strong>{item.label}</strong>
-                <small>{item.key}</small>
+                <small>{item.source === 'feature' ? 'feature' : item.key}</small>
               </div>
-              <input
-                type="number"
-                min="0"
-                placeholder="-"
-                value={homeLayoutOrder[item.key]}
-                disabled={isViewMode}
-                onChange={(e) => {
-                  const rawValue = e.target.value;
-                  setHomeLayoutOrder((prev) => ({ ...prev, [item.key]: rawValue === '' ? '' : Math.max(0, Number(rawValue) || 0) }));
-                }}
-              />
+              <div className="theme-layout-order-controls">
+                {supportsHomeLayoutMode(item.key) && (
+                  <div className="theme-layout-mode-toggle" aria-label={`${item.label} layout mode`}>
+                    {HOME_LAYOUT_MODE_OPTIONS.map((mode) => (
+                      <button
+                        key={`${item.key}-${mode}`}
+                        type="button"
+                        className={homeLayoutModes[item.key] === mode ? 'active' : ''}
+                        disabled={isViewMode}
+                        onClick={() => updateHomeLayoutMode(item.key, mode)}
+                      >
+                        {mode === 'content' ? 'Content' : 'Box'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="-"
+                  value={homeLayoutOrder[item.key]}
+                  disabled={isViewMode}
+                  onChange={(e) => {
+                    const rawValue = e.target.value;
+                    setHomeLayoutOrder((prev) => ({ ...prev, [item.key]: rawValue === '' ? '' : Math.max(0, Number(rawValue) || 0) }));
+                  }}
+                />
+                {item.source === 'feature' && !isViewMode && (
+                  <button
+                    type="button"
+                    className="theme-layout-remove-btn"
+                    onClick={() => handleRemoveFeatureFromLayout(item.key)}
+                    title={`Remove ${item.label}`}
+                    aria-label={`Remove ${item.label}`}
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             </label>
           ))}
         </div>
@@ -814,7 +1006,7 @@ export default function ThemePage() {
   );
 
   useEffect(() => {
-    const generatedLayout = HOME_LAYOUT_OPTIONS
+    const generatedLayout = layoutOptions
       .map((item) => ({
         key: item.key,
         order: Number(homeLayoutOrder[item.key]) || 0,
@@ -827,7 +1019,7 @@ export default function ThemePage() {
       if (prev.home_layout === nextHomeLayout) return prev;
       return { ...prev, home_layout: nextHomeLayout };
     });
-  }, [homeLayoutOrder]);
+  }, [homeLayoutOrder, layoutOptions]);
 
   const combinedPreview = useMemo(
     () => buildTemplateMobilePreview({ theme_config: themeConfigForm }),
@@ -852,7 +1044,7 @@ export default function ThemePage() {
   }, [themeConfigForm]);
   const previewHomeLayoutCards = useMemo(
     () =>
-      HOME_LAYOUT_OPTIONS
+      layoutOptions
         .map((item) => ({
           key: item.key,
           label: item.label,
@@ -1089,6 +1281,38 @@ export default function ThemePage() {
                     </div>
                   ))}</div>}
                   {filtered.length === 0 && <div className="theme-modal-empty">No themes found.</div>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showFeaturePicker && (
+            <div className="theme-modal-overlay" onClick={() => setShowFeaturePicker(false)}>
+              <div className="theme-modal theme-feature-picker-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="theme-modal-head">
+                  <div>
+                    <h3>Add Feature</h3>
+                    <p>Enabled feature flags for this trust.</p>
+                  </div>
+                  <button className="theme-modal-close" onClick={() => setShowFeaturePicker(false)} type="button">x</button>
+                </div>
+                <div className="theme-modal-list">
+                  {featureOptionsToAdd.length ? featureOptionsToAdd.map((feature) => (
+                    <button
+                      key={feature.id || feature.name}
+                      type="button"
+                      className="theme-modal-item theme-feature-picker-item"
+                      onClick={() => handleAddFeatureToLayout(feature)}
+                    >
+                      <div>
+                        <div className="theme-modal-title">{feature.name}</div>
+                        <div className="theme-modal-sub">{feature.route || 'No route'}</div>
+                      </div>
+                      <span className="theme-modal-badge my">Add</span>
+                    </button>
+                  )) : (
+                    <div className="theme-modal-empty">No enabled features available to add.</div>
+                  )}
                 </div>
               </div>
             </div>

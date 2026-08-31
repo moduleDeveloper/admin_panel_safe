@@ -51,6 +51,7 @@ function sanitizeTemplatePayload(payload = {}, existingThemeConfig = {}) {
     ...(payload.name !== undefined ? { name: payload.name } : {}),
     ...(payload.description !== undefined ? { description: payload.description } : {}),
     ...(payload.home_layout !== undefined ? { home_layout: payload.home_layout || DEFAULT_HOME_LAYOUT } : {}),
+    ...(payload.home_layout_modes !== undefined ? { home_layout_modes: payload.home_layout_modes || {} } : {}),
     ...(payload.animations !== undefined ? { animations: payload.animations || DEFAULT_ANIMATIONS } : {}),
     ...(payload.custom_css !== undefined ? { custom_css: payload.custom_css || '' } : {}),
     ...(payload.template_key !== undefined ? { template_key: payload.template_key || 'mahila' } : {}),
