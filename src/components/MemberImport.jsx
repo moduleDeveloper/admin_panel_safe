@@ -23,6 +23,7 @@ function pickRowForPersistence(row) {
     residentLandline: row.residentLandline,
     officeLandline: row.officeLandline,
     contact: row.contact,
+    remarks: row.remarks,
     errors: row.errors,
     editName: row.editName,
     editPhone: row.editPhone,
@@ -472,6 +473,9 @@ export default function MemberImport({ onComplete }) {
       row['Membership Number'] ||
       row['membership_number'] ||
       row['Membership number'] ||
+      row['Membership No.'] ||
+      row['Membership No'] ||
+      row['membership_no'] ||
       row['MembershipNumber'] ||
       null;
     const addressHome = row['Address Home'] || null;
@@ -480,6 +484,14 @@ export default function MemberImport({ onComplete }) {
     const residentLandline = row['Resident Landline'] || null;
     const officeLandline = row['Office Landline'] || null;
     const contact = row.contact || row.Contact || null;
+    const remarks =
+      row.Remarks ||
+      row.remarks ||
+      row.Remark ||
+      row.remark ||
+      row['Company Description'] ||
+      row.company_description ||
+      null;
     const cleanPhone = extractFirstPhone(rawPhone);
     const errors = validateRow({
       editName: name,
@@ -502,6 +514,7 @@ export default function MemberImport({ onComplete }) {
       residentLandline,
       officeLandline,
       contact,
+      remarks,
       errors,
       editName: name,
       editPhone: cleanPhone ?? (rawPhone ? String(rawPhone) : ''),
@@ -758,6 +771,7 @@ export default function MemberImport({ onComplete }) {
     'Address Office': row.addressOffice || null,
     'Resident Landline': row.residentLandline || null,
     'Office Landline': row.officeLandline || null,
+    company_description: row.remarks || null,
     trust_id: String(selectedTrust.id),
     contact: row.contact || null
   });
@@ -770,10 +784,12 @@ export default function MemberImport({ onComplete }) {
       'Address Office',
       'Resident Landline',
       'Office Landline',
+      'Contact',
       'Mobile',
       'Email',
       'Membership Number',
-      'Role'
+      'Role',
+      'Remarks'
     ];
     const worksheet = XLSX.utils.aoa_to_sheet([headers]);
     const workbook = XLSX.utils.book_new();
@@ -1186,9 +1202,6 @@ export default function MemberImport({ onComplete }) {
                   <span className="px-3 py-1" style={{ background: '#EEEDFE', color: '#534AB7', borderRadius: '20px', fontSize: '12px', fontWeight: 500, padding: '4px 12px' }}>Mobile</span>
                   <span className="px-3 py-1" style={{ background: '#EEEDFE', color: '#534AB7', borderRadius: '20px', fontSize: '12px', fontWeight: 500, padding: '4px 12px' }}>Role</span>
                   <span className="px-3 py-1" style={{ background: '#EEEDFE', color: '#534AB7', borderRadius: '20px', fontSize: '12px', fontWeight: 500, padding: '4px 12px' }}>Membership Number</span>
-                  <span className="px-3 py-1" style={{ background: '#F1EFE8', color: '#5F5E5A', borderRadius: '20px', fontSize: '12px', fontWeight: 500 }}>Email</span>
-                  <span className="px-3 py-1" style={{ background: '#F1EFE8', color: '#5F5E5A', borderRadius: '20px', fontSize: '12px', fontWeight: 500 }}>Address Home</span>
-                  <span className="px-3 py-1" style={{ background: '#F1EFE8', color: '#5F5E5A', borderRadius: '20px', fontSize: '12px', fontWeight: 500 }}>Company Name</span>
                 </div>
               </div>
 
@@ -1554,7 +1567,7 @@ export default function MemberImport({ onComplete }) {
             )}
 
             <div className="mt-5 max-h-[360px] overflow-auto" style={{ background: '#FFFFFF', border: '1px solid #EEEEEE', borderRadius: '12px' }}>
-              <table className="w-full text-left min-w-[900px]">
+              <table className="w-full text-left min-w-[1000px]">
                 <thead className="sticky top-0" style={{ background: '#F8F9FC' }}>
                   <tr>
                     <th className="px-4 py-3" style={{ color: '#888', fontSize: '12px', fontWeight: 500 }}>Name</th>
@@ -1562,6 +1575,7 @@ export default function MemberImport({ onComplete }) {
                     <th className="px-4 py-3" style={{ color: '#888', fontSize: '12px', fontWeight: 500 }}>Email</th>
                     <th className="px-4 py-3" style={{ color: '#888', fontSize: '12px', fontWeight: 500 }}>Role</th>
                     <th className="px-4 py-3" style={{ color: '#888', fontSize: '12px', fontWeight: 500 }}>Membership No.</th>
+                    <th className="px-4 py-3" style={{ color: '#888', fontSize: '12px', fontWeight: 500 }}>Remarks</th>
                     <th className="px-4 py-3" style={{ color: '#888', fontSize: '12px', fontWeight: 500 }}>Status</th>
                   </tr>
                 </thead>
@@ -1575,6 +1589,7 @@ export default function MemberImport({ onComplete }) {
                         <td className="px-4 py-3">{row.email || '-'}</td>
                         <td className="px-4 py-3">{row.role || '—'}</td>
                         <td className="px-4 py-3">{row.membershipNumber || '—'}</td>
+                        <td className="px-4 py-3">{row.remarks || '—'}</td>
                         <td className="px-4 py-3">
                           <span
                             className="px-3 py-1"
