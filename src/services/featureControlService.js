@@ -16,6 +16,7 @@ const FLAG_COLUMNS = `
   icon_url,
   route,
   quick_order,
+  display_in_app,
   created_at,
   updated_at
 `;
@@ -51,6 +52,7 @@ function buildDefaultFeatureFlagPayload({ feature, trustId, tier, isEnabled = fa
       overrides.quick_order === null || overrides.quick_order === undefined || overrides.quick_order === ''
         ? null
         : Number(overrides.quick_order),
+    display_in_app: normalizeText(overrides.display_in_app, 'home'),
   };
 }
 
@@ -119,6 +121,7 @@ export function mergeFeaturesWithFlags(masterFeatures, featureFlags, trustId, ti
       icon_url: normalizeText(flag?.icon_url, ''),
       route: normalizeText(flag?.route, ''),
       quick_order: flag?.quick_order ?? null,
+      display_in_app: normalizeText(flag?.display_in_app, 'home'),
       name: normalizeText(flag?.name, feature.name || ''),
       description: normalizeText(flag?.description, ''),
       trust_name: normalizeText(flag?.trust_name, ''),
@@ -266,6 +269,7 @@ export function mergeSingleFeatureWithFlag(mergedFeature, flag) {
     icon_url: normalizeText(flag.icon_url, ''),
     route: normalizeText(flag.route, ''),
     quick_order: flag.quick_order ?? null,
+    display_in_app: normalizeText(flag.display_in_app, 'home'),
     name: normalizeText(flag.name, mergedFeature.master_name || ''),
     description: normalizeText(flag.description, ''),
     trust_name: normalizeText(flag.trust_name, ''),

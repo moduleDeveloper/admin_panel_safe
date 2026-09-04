@@ -82,6 +82,7 @@ export default function FeatureControlPage() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const [togglingMap, setTogglingMap] = useState({});
+  const [displayTogglingMap, setDisplayTogglingMap] = useState({});
   const [activeEditRow, setActiveEditRow] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -451,6 +452,31 @@ export default function FeatureControlPage() {
     setFlash({ type: 'success', text: `Feature ${nextEnabled ? 'enabled' : 'disabled'} successfully.` });
   };
 
+  const handleDisplayInAppToggle = async (row, displayInSidebar) => {
+    const key = row.feature_id;
+    setDisplayTogglingMap((prev) => ({ ...prev, [key]: true }));
+
+    const { data, error: updateError } = await saveFeatureCustomization({
+      mergedFeature: row,
+      trustId: selectedTrustId,
+      tier: selectedTier,
+      trustName: selectedTrust?.name || '',
+      updates: {
+        display_in_app: displayInSidebar ? 'sideBar' : 'home',
+      },
+    });
+
+    setDisplayTogglingMap((prev) => ({ ...prev, [key]: false }));
+
+    if (updateError) {
+      setFlash({ type: 'error', text: updateError.message || 'Unable to update app display.' });
+      return;
+    }
+
+    applyUpdatedFlag(row.feature_id, data);
+    setFlash({ type: 'success', text: `Feature display set to ${displayInSidebar ? 'sidebar' : 'home'}.` });
+  };
+
   const handleOpenEdit = (row) => {
     setSaveError('');
     setActiveEditRow(row);
@@ -628,7 +654,9 @@ export default function FeatureControlPage() {
               rows={filteredRows}
               loading={loading}
               togglingMap={togglingMap}
+              displayTogglingMap={displayTogglingMap}
               onToggle={handleToggle}
+              onDisplayInAppToggle={handleDisplayInAppToggle}
               onEdit={handleOpenEdit}
               onOpenSubScreens={handleOpenSubScreens}
             />

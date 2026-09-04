@@ -52,7 +52,9 @@ export default function FeatureControlTable({
   rows,
   loading,
   togglingMap,
+  displayTogglingMap = {},
   onToggle,
+  onDisplayInAppToggle,
   onEdit,
   onOpenSubScreens,
 }) {
@@ -87,6 +89,7 @@ export default function FeatureControlTable({
             <th>Route</th>
             <th>Tier</th>
             <th>Quick Order</th>
+            <th>Sidebar</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -94,6 +97,8 @@ export default function FeatureControlTable({
         <tbody>
           {rows.map((row) => {
             const isBusy = !!togglingMap[row.feature_id];
+            const isDisplayBusy = !!displayTogglingMap[row.feature_id];
+            const displaysInSidebar = row.display_in_app === 'sideBar';
             return (
               <tr key={`${row.feature_id}-${row.tier}`}>
                 <td data-label="Icon">
@@ -114,6 +119,25 @@ export default function FeatureControlTable({
                   <span className="fc-pill">{row.tier}</span>
                 </td>
                 <td className="fc-order-col" data-label="Quick Order">{row.quick_order ?? '-'}</td>
+                <td className="fc-sidebar-col" data-label="Sidebar">
+                  {row.is_enabled ? (
+                    <button
+                      type="button"
+                      className={`fc-toggle ${displaysInSidebar ? 'on' : 'off'} ${isDisplayBusy ? 'busy' : ''}`}
+                      onClick={() => onDisplayInAppToggle(row, !displaysInSidebar)}
+                      disabled={isDisplayBusy || !onDisplayInAppToggle}
+                      aria-pressed={displaysInSidebar}
+                      aria-label={isDisplayBusy ? 'Saving sidebar display' : displaysInSidebar ? 'Display on home' : 'Display in sidebar'}
+                      title={isDisplayBusy ? 'Saving...' : displaysInSidebar ? 'Display on home' : 'Display in sidebar'}
+                    >
+                      <span className="fc-toggle-track">
+                        <span className="fc-toggle-thumb" />
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="fc-muted-cell">-</span>
+                  )}
+                </td>
                 <td className="fc-status-col" data-label="Status">
                   <div className="fc-status-stack">
                     <button

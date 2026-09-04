@@ -99,23 +99,25 @@
 }
 
 .fc-table th:nth-child(1),
-.fc-table td:nth-child(1) { width: 6%; }
+.fc-table td:nth-child(1) { width: 5%; }
 .fc-table th:nth-child(2),
-.fc-table td:nth-child(2) { width: 21%; }
+.fc-table td:nth-child(2) { width: 20%; }
 .fc-table th:nth-child(3),
-.fc-table td:nth-child(3) { width: 13%; }
+.fc-table td:nth-child(3) { width: 12%; }
 .fc-table th:nth-child(4),
-.fc-table td:nth-child(4) { width: 15%; }
+.fc-table td:nth-child(4) { width: 14%; }
 .fc-table th:nth-child(5),
-.fc-table td:nth-child(5) { width: 9%; }
+.fc-table td:nth-child(5) { width: 8%; }
 .fc-table th:nth-child(6),
-.fc-table td:nth-child(6) { width: 7%; }
+.fc-table td:nth-child(6) { width: 6%; }
 .fc-table th:nth-child(7),
-.fc-table td:nth-child(7) { width: 9%; }
+.fc-table td:nth-child(7) { width: 8%; }
 .fc-table th:nth-child(8),
-.fc-table td:nth-child(8) { width: 9%; }
+.fc-table td:nth-child(8) { width: 8%; }
 .fc-table th:nth-child(9),
-.fc-table td:nth-child(9) { width: 11%; }
+.fc-table td:nth-child(9) { width: 8%; }
+.fc-table th:nth-child(10),
+.fc-table td:nth-child(10) { width: 11%; }
 
 .fc-table th:nth-child(1),
 .fc-table td:nth-child(1) {
@@ -633,6 +635,11 @@
 
 .fc-category-view-panel .fc-table th:nth-child(9),
 .fc-category-view-panel .fc-table td:nth-child(9) {
+  padding-right: 10px;
+}
+
+.fc-category-view-panel .fc-table th:nth-child(10),
+.fc-category-view-panel .fc-table td:nth-child(10) {
   padding-left: 10px;
 }
 
@@ -783,7 +790,8 @@
 }
 
 .fc-actions-col,
-.fc-status-col {
+.fc-status-col,
+.fc-sidebar-col {
   word-break: break-word;
   white-space: normal;
   vertical-align: middle;
@@ -813,12 +821,17 @@
 }
 
 .fc-tier-col,
-.fc-order-col {
+.fc-order-col,
+.fc-sidebar-col {
   white-space: nowrap;
 }
 
 .fc-table th:nth-child(7),
 .fc-table td:nth-child(7),
+.fc-table th:nth-child(8),
+.fc-table td:nth-child(8),
+.fc-table th:nth-child(9),
+.fc-table td:nth-child(9),
 .fc-order-col {
   text-align: center;
 }
@@ -830,15 +843,26 @@
 
 .fc-table th:nth-child(9),
 .fc-table td:nth-child(9) {
+  padding-right: 18px;
+}
+
+.fc-table th:nth-child(10),
+.fc-table td:nth-child(10) {
   padding-left: 26px;
 }
 
 .fc-table th:nth-child(7),
 .fc-table th:nth-child(8),
-.fc-table th:nth-child(9) {
+.fc-table th:nth-child(9),
+.fc-table th:nth-child(10) {
   text-align: center;
   font-size: 12px;
   letter-spacing: 0.015em;
+}
+
+.fc-muted-cell {
+  color: #94a3b8;
+  font-weight: 700;
 }
 
 .fc-btn-primary {
