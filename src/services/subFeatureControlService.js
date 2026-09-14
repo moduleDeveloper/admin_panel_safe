@@ -25,6 +25,11 @@ function normalizeText(value, fallback = '') {
   return text || fallback;
 }
 
+function normalizeOptionalText(value) {
+  const text = String(value ?? '').trim();
+  return text || null;
+}
+
 function isDuplicateError(error) {
   if (!error) return false;
   if (DUPLICATE_ERROR_CODES.has(String(error.code || ''))) return true;
@@ -48,7 +53,7 @@ function buildDefaultSubFeatureFlagPayload({
     sub_feature_id: subFeature.id,
     tier: toTier(tier),
     enabled: !!enabled,
-    display_name: normalizeText(overrides.display_name, subFeature.sub_feature_name || ''),
+    display_name: normalizeOptionalText(overrides.display_name),
     tagline: normalizeText(overrides.tagline, subFeature.remark || ''),
     icon_url: normalizeText(overrides.icon_url, ''),
     route: normalizeText(overrides.route, ''),
@@ -124,7 +129,7 @@ export function mergeSubFeaturesWithFlags(masterSubFeatures, subFeatureFlags, tr
       tier: toTier(tier),
       flag_id: flag?.id || null,
       is_enabled: flag?.enabled ?? false,
-      display_name: normalizeText(flag?.display_name, subFeature.sub_feature_name || ''),
+      display_name: normalizeOptionalText(flag?.display_name),
       tagline: normalizeText(flag?.tagline, subFeature.remark || ''),
       icon_url: normalizeText(flag?.icon_url, ''),
       route: normalizeText(flag?.route, ''),
@@ -268,7 +273,7 @@ export function mergeSingleSubFeatureWithFlag(mergedSubFeature, flag) {
     trust_id: String(flag.trust_id || ''),
     tier: toTier(flag.tier),
     is_enabled: flag.enabled ?? false,
-    display_name: normalizeText(flag.display_name, mergedSubFeature.master_name || ''),
+    display_name: normalizeOptionalText(flag.display_name),
     tagline: normalizeText(flag.tagline, mergedSubFeature.master_subname || ''),
     icon_url: normalizeText(flag.icon_url, ''),
     route: normalizeText(flag.route, ''),

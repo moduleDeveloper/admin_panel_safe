@@ -28,6 +28,11 @@ function normalizeText(value, fallback = '') {
   return text || fallback;
 }
 
+function normalizeOptionalText(value) {
+  const text = String(value ?? '').trim();
+  return text || null;
+}
+
 function isDuplicateError(error) {
   if (!error) return false;
   if (DUPLICATE_ERROR_CODES.has(String(error.code || ''))) return true;
@@ -41,7 +46,7 @@ function buildDefaultFeatureFlagPayload({ feature, trustId, tier, isEnabled = fa
     trust_id: trustId,
     tier,
     is_enabled: !!isEnabled,
-    display_name: normalizeText(overrides.display_name, feature.name || ''),
+    display_name: normalizeOptionalText(overrides.display_name),
     name: normalizeText(overrides.name, feature.name || ''),
     tagline: normalizeText(overrides.tagline, feature.subname || ''),
     description: normalizeText(overrides.description, ''),
@@ -116,7 +121,7 @@ export function mergeFeaturesWithFlags(masterFeatures, featureFlags, trustId, ti
       tier,
       flag_id: flag?.id || null,
       is_enabled: flag?.is_enabled ?? false,
-      display_name: normalizeText(flag?.display_name, feature.name || ''),
+      display_name: normalizeOptionalText(flag?.display_name),
       tagline: normalizeText(flag?.tagline, feature.subname || ''),
       icon_url: normalizeText(flag?.icon_url, ''),
       route: normalizeText(flag?.route, ''),
@@ -264,7 +269,7 @@ export function mergeSingleFeatureWithFlag(mergedFeature, flag) {
     trust_id: flag.trust_id,
     tier: flag.tier,
     is_enabled: flag.is_enabled ?? false,
-    display_name: normalizeText(flag.display_name, mergedFeature.master_name || ''),
+    display_name: normalizeOptionalText(flag.display_name),
     tagline: normalizeText(flag.tagline, mergedFeature.master_subname || ''),
     icon_url: normalizeText(flag.icon_url, ''),
     route: normalizeText(flag.route, ''),

@@ -90,12 +90,16 @@
 }
 
 .fc-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: #55627a;
   white-space: nowrap;
   background: #f8faff;
+  box-shadow: 0 1px 0 rgba(99, 102, 241, 0.12);
 }
 
 .fc-table th:nth-child(1),
@@ -118,6 +122,25 @@
 .fc-table td:nth-child(9) { width: 8%; }
 .fc-table th:nth-child(10),
 .fc-table td:nth-child(10) { width: 11%; }
+
+.fc-feature-table th:nth-child(1),
+.fc-feature-table td:nth-child(1) { width: 5%; }
+.fc-feature-table th:nth-child(2),
+.fc-feature-table td:nth-child(2) { width: 21%; }
+.fc-feature-table th:nth-child(3),
+.fc-feature-table td:nth-child(3) { width: 13%; }
+.fc-feature-table th:nth-child(4),
+.fc-feature-table td:nth-child(4) { width: 15%; }
+.fc-feature-table th:nth-child(5),
+.fc-feature-table td:nth-child(5) { width: 9%; }
+.fc-feature-table th:nth-child(6),
+.fc-feature-table td:nth-child(6) { width: 9%; }
+.fc-feature-table th:nth-child(7),
+.fc-feature-table td:nth-child(7) { width: 13%; }
+.fc-feature-table th:nth-child(8),
+.fc-feature-table td:nth-child(8) { width: 7%; }
+.fc-feature-table th:nth-child(9),
+.fc-feature-table td:nth-child(9) { width: 8%; }
 
 .fc-table th:nth-child(1),
 .fc-table td:nth-child(1) {
@@ -724,6 +747,49 @@
   gap: 4px;
 }
 
+.fc-display-switch {
+  display: inline-flex;
+  align-items: stretch;
+  padding: 3px;
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 999px;
+  background: #f8faff;
+  box-shadow: 0 3px 8px rgba(79, 70, 229, 0.1);
+}
+
+.fc-display-option {
+  min-width: 58px;
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: transparent;
+  color: #596783;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.fc-display-option.active {
+  background: #6366f1;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.28);
+}
+
+.fc-display-option:disabled {
+  cursor: not-allowed;
+}
+
+.fc-display-switch.busy {
+  opacity: 0.65;
+}
+
+.fc-display-switch.locked .fc-display-option {
+  cursor: help;
+}
+
 .fc-placement-note {
   color: #64748b;
   font-size: 10px;
@@ -901,8 +967,10 @@
   padding: 10px 12px;
   border-radius: 10px;
   background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid rgba(220, 38, 38, 0.18);
+}
+
+.fc-category-view-panel .fc-feature-table th:nth-child(6),
+.fc-category-view-panel .fc-feature-table td:nth-child(6) {
   font-size: 13px;
   font-weight: 600;
 }

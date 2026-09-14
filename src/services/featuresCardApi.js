@@ -16,6 +16,11 @@ function normalizeText(value, fallback = '') {
   return text || fallback;
 }
 
+function normalizeOptionalText(value) {
+  const text = String(value ?? '').trim();
+  return text || null;
+}
+
 function normalizeRoute(value) {
   const route = String(value ?? '').trim();
   if (!route) return '';
@@ -123,7 +128,7 @@ export async function fetchFeaturesCardData({ trustId, tier = FEATURE_FLAG_TIER_
 
         return {
           id: subFeature.id,
-          display_name: normalizeText(subFeatureFlag.display_name, subFeature.sub_feature_name || ''),
+          display_name: normalizeOptionalText(subFeatureFlag.display_name),
           tagline: normalizeText(subFeatureFlag.tagline, subFeature.remark || ''),
           icon_url: normalizeText(subFeatureFlag.icon_url),
           route: normalizeRoute(subFeatureFlag.route),
@@ -136,10 +141,7 @@ export async function fetchFeaturesCardData({ trustId, tier = FEATURE_FLAG_TIER_
     return {
       id: featureFlag.features_id,
       feature_flag_id: featureFlag.id,
-      display_name: normalizeText(
-        featureFlag.display_name,
-        featureFlag.name || featureFlag.features?.name || 'Feature',
-      ),
+      display_name: normalizeOptionalText(featureFlag.display_name),
       tagline: normalizeText(
         featureFlag.tagline,
         featureFlag.description || featureFlag.features?.subname || '',

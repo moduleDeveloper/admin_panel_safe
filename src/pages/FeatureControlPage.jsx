@@ -30,7 +30,6 @@ const HOME_ONLY_PLACEMENT_KEYS = new Set([
   'feature_marquee',
   'feature_trustlist',
   'feature_trust_list',
-  'feature_notifications',
   'feature_developer_info',
   'feature_member_banner',
   'trustlist',
@@ -43,12 +42,13 @@ const HOME_ONLY_PLACEMENT_KEYS = new Set([
 ]);
 
 const SIDEBAR_ONLY_PLACEMENT_KEYS = new Set([
-  'feature_add_community',
   'feature_nomination_details',
   'feature_nomination',
-  'add_community',
   'nomination_details',
   'nomination',
+  'feature_profile',
+  'profile',
+  'user_profile',
 ]);
 
 const normalizeDisplayInApp = (value) => String(value || DISPLAY_IN_APP_HOME).trim().toLowerCase();
@@ -387,13 +387,10 @@ export default function FeatureControlPage() {
     });
 
     return [...byCategory].sort((left, right) => {
-      const leftOrder = normalizeQuickOrder(left.quick_order);
-      const rightOrder = normalizeQuickOrder(right.quick_order);
       const direction = quickOrderSort === 'desc' ? -1 : 1;
-      if (leftOrder !== rightOrder) return (leftOrder - rightOrder) * direction;
       return String(left.master_name || '').localeCompare(String(right.master_name || ''), undefined, {
         sensitivity: 'base',
-      });
+      }) * direction;
     });
   }, [rowsWithCounts, searchTerm, statusFilter, categoryFilter, quickOrderSort]);
 
@@ -516,10 +513,10 @@ export default function FeatureControlPage() {
       </label>
 
       <label>
-        <span>Sort by Quick Order</span>
+        <span>Sort Alphabetically</span>
         <select value={quickOrderSort} onChange={(event) => setQuickOrderSort(event.target.value)}>
-          <option value="asc">ascending</option>
-          <option value="desc">descending</option>
+          <option value="asc">A to Z</option>
+          <option value="desc">Z to A</option>
         </select>
       </label>
     </div>

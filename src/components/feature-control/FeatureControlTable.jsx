@@ -79,7 +79,7 @@ export default function FeatureControlTable({
 
   return (
     <div className="fc-table-wrap">
-      <table className="fc-table">
+      <table className="fc-table fc-feature-table">
         <thead>
           <tr>
             <th>Icon</th>
@@ -87,9 +87,8 @@ export default function FeatureControlTable({
             <th>Display Name</th>
             <th>Tagline</th>
             <th>Route</th>
-            <th>Tier</th>
             <th>Quick Order</th>
-            <th>Sidebar</th>
+            <th>Display</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -124,11 +123,8 @@ export default function FeatureControlTable({
                 <td className="fc-display-col" data-label="Display Name">{row.display_name || '-'}</td>
                 <td className="fc-tagline-col" data-label="Tagline">{row.tagline || '-'}</td>
                 <td className="fc-route-col" data-label="Route">{row.route || '-'}</td>
-                <td className="fc-tier-col" data-label="Tier">
-                  <span className="fc-pill">{row.tier}</span>
-                </td>
                 <td className="fc-order-col" data-label="Quick Order">{row.quick_order ?? '-'}</td>
-                <td className="fc-sidebar-col" data-label="Sidebar">
+                <td className="fc-sidebar-col" data-label="Display">
                   {row.is_enabled ? (
                     <div
                       className="fc-placement-cell"
@@ -139,25 +135,35 @@ export default function FeatureControlTable({
                         }
                       }}
                     >
-                      <button
-                        type="button"
-                        className={`fc-toggle ${displaysInSidebar ? 'on' : 'off'} ${isDisplayBusy ? 'busy' : ''} ${placementPolicy.locked ? 'locked' : ''}`}
-                        onClick={(event) => {
-                          if (isHomeOnly) {
-                            event.preventDefault();
-                            return;
-                          }
-                          onDisplayInAppToggle(row, !displaysInSidebar);
-                        }}
-                        disabled={isDisplayBusy || !onDisplayInAppToggle || isHomeOnly}
-                        aria-pressed={displaysInSidebar}
-                        aria-label={isDisplayBusy ? 'Saving sidebar display' : placementMessage}
+                      <div
+                        className={`fc-display-switch ${isDisplayBusy ? 'busy' : ''} ${placementPolicy.locked ? 'locked' : ''}`}
+                        role="group"
+                        aria-label={isDisplayBusy ? 'Saving display placement' : placementMessage}
                         title={isDisplayBusy ? 'Saving...' : placementMessage}
                       >
-                        <span className="fc-toggle-track">
-                          <span className="fc-toggle-thumb" />
-                        </span>
-                      </button>
+                        <button
+                          type="button"
+                          className={`fc-display-option ${!displaysInSidebar ? 'active' : ''}`}
+                          onClick={() => {
+                            if (!isHomeOnly && displaysInSidebar) onDisplayInAppToggle(row, false);
+                          }}
+                          disabled={isDisplayBusy || !onDisplayInAppToggle || placementPolicy.locked}
+                          aria-pressed={!displaysInSidebar}
+                        >
+                          Home
+                        </button>
+                        <button
+                          type="button"
+                          className={`fc-display-option ${displaysInSidebar ? 'active' : ''}`}
+                          onClick={() => {
+                            if (!isSidebarOnly && !displaysInSidebar) onDisplayInAppToggle(row, true);
+                          }}
+                          disabled={isDisplayBusy || !onDisplayInAppToggle || placementPolicy.locked}
+                          aria-pressed={displaysInSidebar}
+                        >
+                          Sidebar
+                        </button>
+                      </div>
                       {placementLabel ? <span className="fc-placement-note">{placementLabel}</span> : null}
                     </div>
                   ) : (

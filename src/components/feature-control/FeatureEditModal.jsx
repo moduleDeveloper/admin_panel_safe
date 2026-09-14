@@ -5,7 +5,7 @@ import { getAllowedImageFormatsMessage, prepareImageFileForUpload } from '../../
 
 function toDefaults(row) {
   return {
-    display_name: row.display_name || row.master_name || '',
+    display_name: row.display_name ?? '',
     tagline: row.tagline || row.master_subname || '',
     icon_url: row.icon_url || '',
     route: row.route || '',
@@ -22,11 +22,6 @@ function normalizeRouteInput(value) {
 
 function validate(values) {
   const errors = {};
-
-  const displayName = String(values.display_name || '').trim();
-  if (!displayName || displayName.length < 2 || displayName.length > 60) {
-    errors.display_name = 'Display name must be 2 to 60 characters.';
-  }
 
   const quickOrder = String(values.quick_order).trim();
   if (quickOrder !== '' && !/^\d+$/.test(quickOrder)) {
@@ -131,7 +126,7 @@ export default function FeatureEditModal({
 
     onSave({
       quick_order: String(form.quick_order).trim() === '' ? null : Number(form.quick_order),
-      display_name: String(form.display_name || '').trim(),
+      display_name: String(form.display_name || '').trim() || null,
       tagline: String(form.tagline || '').trim(),
       icon_url: String(form.icon_url || '').trim(),
       route: normalizedRoute,
