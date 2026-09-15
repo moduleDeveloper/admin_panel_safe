@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FeatureIconRenderer } from '../../pages/Dashboard';
+import { uploadFeatureLogo } from '../../services/featureControlService';
 import { getAllowedImageFormatsMessage, prepareImageFileForUpload } from '../../utils/imageUpload';
 
 function toDefaults(row) {
@@ -50,6 +51,7 @@ function validate(values) {
 export default function FeatureEditModal({
   open,
   row,
+  trustId,
   tier,
   saving,
   saveError,
@@ -60,6 +62,8 @@ export default function FeatureEditModal({
   const [fieldErrors, setFieldErrors] = useState({});
   const [uploadError, setUploadError] = useState('');
   const [instantPreviewUrl, setInstantPreviewUrl] = useState('');
+  const [iconFile, setIconFile] = useState(null);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -106,29 +110,40 @@ export default function FeatureEditModal({
 
     if (instantPreviewUrl) URL.revokeObjectURL(instantPreviewUrl);
     setInstantPreviewUrl(URL.createObjectURL(uploadFile));
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      handleChange('icon_url', String(reader.result || ''));
-      setUploadError(prepared.warning || '');
-    };
-    reader.onerror = () => {
-      setUploadError('Unable to read selected image.');
-    };
-    reader.readAsDataURL(uploadFile);
+    setIconFile(uploadFile);
+    setUploadError(prepared.warning || '');
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const normalizedRoute = normalizeRouteInput(form.route);
     const errors = validate({ ...form, route: normalizedRoute });
     setFieldErrors(errors);
     if (Object.keys(errors).length) return;
 
+    let iconUrl = String(form.icon_url || '').trim();
+    if (iconFile) {
+      setUploadingIcon(true);
+      setUploadError('');
+      const { data: uploadData, error: uploadErrorData } = await uploadFeatureLogo(iconFile, {
+        trustId,
+        ownerId: row.feature_id,
+        type: 'feature',
+      });
+      setUploadingIcon(false);
+
+      if (uploadErrorData || !uploadData?.publicUrl) {
+        setUploadError(uploadErrorData?.message || 'Unable to upload icon.');
+        return;
+      }
+
+      iconUrl = uploadData.publicUrl;
+    }
+
     onSave({
       quick_order: String(form.quick_order).trim() === '' ? null : Number(form.quick_order),
       display_name: String(form.display_name || '').trim() || null,
       tagline: String(form.tagline || '').trim(),
-      icon_url: String(form.icon_url || '').trim(),
+      icon_url: iconUrl,
       route: normalizedRoute,
     });
   };
@@ -136,6 +151,7 @@ export default function FeatureEditModal({
   const handleRemoveIcon = () => {
     if (instantPreviewUrl) URL.revokeObjectURL(instantPreviewUrl);
     setInstantPreviewUrl('');
+    setIconFile(null);
     handleChange('icon_url', '');
   };
 
@@ -224,8 +240,8 @@ export default function FeatureEditModal({
 
         <div className="fc-modal-actions">
           <button type="button" className="fc-btn" onClick={onClose}>Cancel</button>
-          <button type="button" className="fc-btn fc-btn-primary" onClick={handleSubmit} disabled={saving}>
-            {saving ? 'Saving...' : 'Save Changes'}
+          <button type="button" className="fc-btn fc-btn-primary" onClick={handleSubmit} disabled={saving || uploadingIcon}>
+            {saving || uploadingIcon ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>

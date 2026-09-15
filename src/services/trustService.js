@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 
-const TRUST_ICON_BUCKET = (import.meta.env.VITE_TRUST_ICON_BUCKET || 'trust-icons').trim();
+const TRUST_ICON_BUCKET = (import.meta.env.VITE_TRUST_ICON_BUCKET || 'feature_logo').trim();
 
 /**
  * Create a new trust

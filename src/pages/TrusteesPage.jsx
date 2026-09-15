@@ -685,7 +685,10 @@ export default function TrusteesPage() {
                             <button
                               type="button"
                               className="tp-logo-clear"
-                              onClick={() => setDraft(p => ({ ...p, icon_url: '' }))}
+                              onClick={() => {
+                                setDraft(p => ({ ...p, icon_url: '' }));
+                                setLogoFile(null);
+                              }}
                             >
                               Remove
                             </button>

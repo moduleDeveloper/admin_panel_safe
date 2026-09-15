@@ -376,6 +376,7 @@ export default function SubFeatureControlPage() {
         key={activeEditRow ? `${activeEditRow.sub_feature_id}-${activeEditRow.tier}-${editSession}` : 'sub-feature-edit'}
         open={!!activeEditRow}
         row={activeEditRow}
+        trustId={selectedTrustId}
         parentFeatureName={selectedFeature?.name || ''}
         tier={selectedTier}
         saving={savingEdit}

@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { cachedQuery, invalidateCache } from './requestCache';
 
 const MASTER_FEATURE_COLUMNS = 'id, name, subname, remarks, created_at, updated_at';
+const FEATURE_LOGO_BUCKET = (import.meta.env.VITE_FEATURE_LOGO_BUCKET || 'feature_logo').trim();
 const FLAG_COLUMNS = `
   id,
   features_id,
@@ -33,11 +34,51 @@ function normalizeOptionalText(value) {
   return text || null;
 }
 
+function sanitizePathSegment(value, fallback = 'item') {
+  return String(value || fallback)
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || fallback;
+}
+
 function isDuplicateError(error) {
   if (!error) return false;
   if (DUPLICATE_ERROR_CODES.has(String(error.code || ''))) return true;
   const message = String(error.message || '').toLowerCase();
   return message.includes('duplicate key') || message.includes('unique constraint');
+}
+
+export async function uploadFeatureLogo(file, { trustId, ownerId, type = 'feature' } = {}) {
+  if (!file) return { data: null, error: { message: 'No file provided' } };
+  if (!trustId) return { data: null, error: { message: 'No trust ID provided' } };
+
+  const extension = String(file.name || 'icon.png').split('.').pop()?.toLowerCase() || 'png';
+  const safeExt = extension.replace(/[^a-z0-9]/g, '') || 'png';
+  const safeTrustId = sanitizePathSegment(trustId, 'trust');
+  const safeOwnerId = sanitizePathSegment(ownerId, 'item');
+  const safeType = sanitizePathSegment(type, 'feature');
+  const path = `${safeTrustId}/${safeType}/${safeOwnerId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${safeExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(FEATURE_LOGO_BUCKET)
+    .upload(path, file, {
+      cacheControl: '3600',
+      upsert: true,
+      contentType: file.type || undefined,
+    });
+
+  if (uploadError) return { data: null, error: uploadError };
+
+  const { data: publicData } = supabase.storage.from(FEATURE_LOGO_BUCKET).getPublicUrl(path);
+  return {
+    data: {
+      bucket: FEATURE_LOGO_BUCKET,
+      path,
+      publicUrl: publicData?.publicUrl || '',
+    },
+    error: null,
+  };
 }
 
 function buildDefaultFeatureFlagPayload({ feature, trustId, tier, isEnabled = false, trustName = '', overrides = {} }) {

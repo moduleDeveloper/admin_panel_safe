@@ -820,6 +820,7 @@ export default function FeatureControlPage() {
         key={activeEditRow ? `${activeEditRow.feature_id}-${activeEditRow.tier}` : 'feature-edit'}
         open={!!activeEditRow}
         row={activeEditRow}
+        trustId={selectedTrustId}
         tier={selectedTier}
         saving={savingEdit}
         saveError={saveError}
