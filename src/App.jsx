@@ -9,29 +9,14 @@ const CreateTrustPage = lazy(() => import('./pages/CreateTrustPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const TrusteesPage = lazy(() => import('./pages/TrusteesPage'));
 const TrustDetails = lazy(() => import('./pages/TrustDetails'));
-const SponsorsPage = lazy(() => import('./pages/SponsorsPage'));
-const MembersPage = lazy(() => import('./pages/MembersPage'));
-const MemberProfilePage = lazy(() => import('./pages/MemberProfilePage'));
 const OtherMembershipPage = lazy(() => import('./pages/OtherMembershipPage'));
 const MyFamilyPage = lazy(() => import('./pages/MyFamilyPage'));
-const ExecutiveBodyPage = lazy(() => import('./pages/ExecutiveBodyPage'));
-const GalleryPage = lazy(() => import('./pages/GalleryPage'));
-const MarqueePage = lazy(() => import('./pages/MarqueePage'));
-const NoticeboardPage = lazy(() => import('./pages/NoticeboardPage'));
-const NoticeDetailPage = lazy(() => import('./pages/NoticeDetailPage'));
-const NotificationPage = lazy(() => import('./pages/NotificationPage'));
-const EventsPage = lazy(() => import('./pages/EventsPage'));
-const EventDetailPage = lazy(() => import('./pages/EventDetailPage'));
-const FacilitiesPage = lazy(() => import('./pages/FacilitiesPage'));
-const ContactUsPage = lazy(() => import('./pages/ContactUsPage'));
-const DonationsPage = lazy(() => import('./pages/DonationsPage'));
 const ThemePage = lazy(() => import('./pages/theme/ThemePage'));
 const FeatureControlPage = lazy(() => import('./pages/FeatureControlPage'));
 const SubFeatureControlPage = lazy(() => import('./pages/SubFeatureControlPage'));
 const Features20Page = lazy(() => import('./pages/Features20Page'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
 const SocialMediaPage = lazy(() => import('./pages/SocialMediaPage'));
-const ProductPage = lazy(() => import('./pages/ProductPage'));
 const WhatsappPage = lazy(() => import('./pages/whatsapp/WhatsappPage'));
 const ServiceProviderPage = lazy(() => import('./pages/whatsapp/ServiceProviderPage'));
 const WhatsappMediaPage = lazy(() => import('./pages/whatsapp/WhatsappMediaPage'));
@@ -40,8 +25,6 @@ const WaCampPage = lazy(() => import('./pages/whatsapp/WaCampPage'));
 const WaCampAudiencePage = lazy(() => import('./pages/whatsapp/WaCampAudiencePage'));
 const BankDetailsPage = lazy(() => import('./pages/BankDetailsPage'));
 const CreateVideoPage = lazy(() => import('./pages/CreateVideoPage'));
-const ShareAppPage = lazy(() => import('./pages/ShareAppPage'));
-const AchievementsPage = lazy(() => import('./pages/AchievementsPage'));
 const LinkedTrustsPage = lazy(() => import('./pages/LinkedTrustsPage'));
 const NominationsPage = lazy(() => import('./pages/NominationsPage'));
 const MemberImportPage = lazy(() => import('./components/MemberImport'));
@@ -64,42 +47,12 @@ function App() {
           <Route path="/dashboard"    element={<Dashboard />} />
           <Route path="/trust-details" element={<TrustDetails />} />
           <Route path="/trustees"     element={<TrusteesPage />} />
-          <Route path="/sponsor"      element={<SponsorsPage />} />
-          <Route path="/sponsor/create_sponsor" element={<SponsorsPage />} />
-          <Route path="/sponsor/edit_sponsor" element={<SponsorsPage />} />
-          <Route path="/sponsorts/edit_sponsor" element={<SponsorsPage />} />
-          <Route path="/members"      element={<MembersPage />} />
           <Route path="/members/bulk-upload" element={<MemberImportPage />} />
-          <Route path="/member"       element={<MembersPage />} />
-          <Route path="/member/create_member" element={<MembersPage />} />
-          <Route path="/member-profile" element={<MemberProfilePage />} />
           <Route path="/my-family" element={<MyFamilyPage />} />
           <Route path="/my-family/create_family_member" element={<MyFamilyPage />} />
           <Route path="/other-membership" element={<OtherMembershipPage />} />
           <Route path="/other-membership/create_other_membership" element={<OtherMembershipPage />} />
           <Route path="/other-sponsorship" element={<OtherMembershipPage />} />
-          <Route path="/executive-body" element={<ExecutiveBodyPage />} />
-          <Route path="/gallery"      element={<GalleryPage />} />
-          <Route path="/gallery/:folderId" element={<GalleryPage />} />
-          <Route path="/marquee"      element={<MarqueePage />} />
-          <Route path="/noticeboard"  element={<NoticeboardPage />} />
-          <Route path="/noticeboard/create_notice" element={<NoticeboardPage />} />
-          <Route path="/noticeboard/edit_details" element={<NoticeboardPage />} />
-          <Route path="/noticeboard/:noticeId" element={<NoticeDetailPage />} />
-          <Route path="/notification" element={<NotificationPage />} />
-          <Route path="/events"       element={<EventsPage />} />
-          <Route path="/events/create_event" element={<EventsPage />} />
-          <Route path="/events/edit_details" element={<EventsPage />} />
-          <Route path="/events/:eventId" element={<EventDetailPage />} />
-          <Route path="/facilities" element={<FacilitiesPage />} />
-          <Route path="/facilities/create_facility" element={<FacilitiesPage />} />
-          <Route path="/facilities/edit_details" element={<FacilitiesPage />} />
-          <Route path="/contact-us" element={<ContactUsPage />} />
-          <Route path="/contact-us/create_contact" element={<ContactUsPage />} />
-          <Route path="/contact-us/edit_details" element={<ContactUsPage />} />
-          <Route path="/donations" element={<DonationsPage />} />
-          <Route path="/donations/create_donation" element={<DonationsPage />} />
-          <Route path="/donations/edit_details" element={<DonationsPage />} />
           <Route path="/theme"        element={<ThemePage />} />
           <Route path="/feature-control" element={<FeatureControlPage />} />
           <Route path="/sub-feature-control" element={<SubFeatureControlPage />} />
@@ -113,7 +66,6 @@ function App() {
           <Route path="/social-media" element={<SocialMediaPage />} />
           <Route path="/social-media/accounts-details" element={<SocialMediaPage />} />
           <Route path="/social-media/create" element={<SocialMediaPage />} />
-          <Route path="/social-media/product" element={<ProductPage />} />
           <Route path="/whatsapp" element={<WhatsappPage />} />
           <Route path="/whatsapp/service-provider" element={<ServiceProviderPage />} />
           <Route path="/whatsapp/service-provider/create" element={<ServiceProviderPage />} />
@@ -132,10 +84,6 @@ function App() {
           <Route path="/company-details/bank-details/create" element={<BankDetailsPage />} />
           <Route path="/company-details/bank-details/edit" element={<BankDetailsPage />} />
           <Route path="/video/create" element={<CreateVideoPage />} />
-          <Route path="/share-app" element={<ShareAppPage />} />
-          <Route path="/achievements" element={<AchievementsPage />} />
-          <Route path="/achievements/create_achievement" element={<AchievementsPage />} />
-          <Route path="/achievements/edit_details" element={<AchievementsPage />} />
           <Route path="/linked-trusts" element={<LinkedTrustsPage />} />
           <Route path="/nominations" element={<NominationsPage />} />
         </Routes>

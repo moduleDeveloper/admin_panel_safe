@@ -79,30 +79,6 @@ const navItems = [
     ),
   },
   {
-    id: 'nav-home-page',
-    label: 'Home Page',
-    route: '/dashboard',
-    navKey: 'home-page',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-10.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'nav-quick-actions',
-    label: 'Quick Actions',
-    route: '/dashboard',
-    navKey: 'quick-actions',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M4 6h16M4 12h10M4 18h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-        <circle cx="17" cy="12" r="2" fill="currentColor"/>
-        <circle cx="14" cy="18" r="2" fill="currentColor"/>
-      </svg>
-    ),
-  },
-  {
     id: 'nav-extra',
     label: 'Extra',
     route: '/dashboard',

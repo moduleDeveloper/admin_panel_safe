@@ -87,49 +87,6 @@ const MODULE_CARDS = [
     ),
   },
   {
-    id: 'card-logo',
-    label: 'Logo',
-    description: 'Manage app name, subheading and logo',
-    route: '/trustees',
-    gradient: 'linear-gradient(135deg, #7C3AED 0%, #2563EB 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="3" width="18" height="18" rx="3" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.15)" />
-        <circle cx="8.5" cy="8.5" r="1.6" fill="white" />
-        <polyline points="21 15 16 10 5 21" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'card-sponsor',
-    label: 'Sponsor',
-    description: 'Manage sponsors & partnerships',
-    route: '/sponsor',
-    gradient: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z" stroke="white" strokeWidth="1.8" strokeLinejoin="round" fill="rgba(255,255,255,0.2)"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'card-members',
-    label: 'Members',
-    description: 'Manage trust members & registrations',
-    route: '/members',
-    temporarilyDeactivated: true,
-    deactivationText: 'Temporarily Deactivated',
-    gradient: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <circle cx="9" cy="8" r="3.2" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.16)"/>
-        <path d="M4 18c0-2.8 2.46-5 5.5-5S15 15.2 15 18" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-        <circle cx="17.5" cy="9" r="2.2" stroke="white" strokeWidth="1.8"/>
-        <path d="M15.5 17.2c.55-1.62 1.96-2.7 4-2.7" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  {
     id: 'card-bulk-members-upload',
     label: 'Bulk Members Upload',
     description: 'Upload members in bulk from file',
@@ -140,48 +97,6 @@ const MODULE_CARDS = [
         <path d="M12 16V5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
         <path d="M8.8 8.2L12 5l3.2 3.2" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         <rect x="4" y="14.5" width="16" height="5.5" rx="2" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.16)" />
-      </svg>
-    ),
-  },
-  {
-    id: 'card-gallery',
-    label: 'Gallery',
-    description: 'Upload & manage photo albums',
-    route: '/gallery',
-    gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="3" width="18" height="18" rx="3" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.15)"/>
-        <circle cx="8.5" cy="8.5" r="1.8" fill="white"/>
-        <polyline points="21 15 16 10 5 21" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'card-marquee',
-    label: 'Marquee',
-    description: 'Manage scrolling announcements',
-    route: '/marquee',
-    gradient: 'linear-gradient(135deg, #0891B2 0%, #6366F1 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <rect x="2" y="7" width="20" height="10" rx="2.5" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.15)"/>
-        <line x1="6" y1="12" x2="18" y2="12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-        <polyline points="14 9 18 12 14 15" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'card-notifications',
-    label: 'Notifications',
-    description: 'Manage alerts and notifications',
-    route: '/notification',
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="18.5" cy="5.5" r="2.2" fill="rgba(255,255,255,0.9)" />
       </svg>
     ),
   },
@@ -262,93 +177,6 @@ const MODULE_CARDS = [
     ),
   },
   {
-    id: 'card-noticeboard',
-    label: 'Noticeboard',
-    description: 'View notices and open individual updates',
-    route: '/noticeboard',
-    gradient: 'linear-gradient(135deg, #7C3AED 0%, #3B82F6 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="5" width="16" height="12" rx="2" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.16)" />
-        <line x1="8" y1="9" x2="16" y2="9" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="8" y1="12" x2="14" y2="12" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="10" y1="17" x2="10" y2="20" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="14" y1="17" x2="14" y2="20" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'card-events',
-    label: 'Events',
-    description: 'Manage event updates and detail pages',
-    route: '/events',
-    gradient: 'linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="4" width="18" height="17" rx="2.5" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.16)" />
-        <line x1="3" y1="9" x2="21" y2="9" stroke="white" strokeWidth="1.8" />
-        <line x1="8" y1="2.5" x2="8" y2="6" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="16" y1="2.5" x2="16" y2="6" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="8" cy="14" r="1.4" fill="white" />
-        <circle cx="12" cy="14" r="1.4" fill="white" />
-        <circle cx="16" cy="14" r="1.4" fill="white" />
-      </svg>
-    ),
-  },
-  {
-    id: 'card-facilities',
-    label: 'Facilities',
-    description: 'Manage facilities updates and details',
-    route: '/facilities',
-    gradient: 'linear-gradient(135deg, #14B8A6 0%, #0EA5E9 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="4" width="16" height="16" rx="2.5" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.16)" />
-        <path d="M8 16v-3h8v3M10 10h4M12 7v6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'card-contact-us',
-    label: 'Contact Us',
-    description: 'Manage contact details for facilities',
-    route: '/contact-us',
-    gradient: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <path d="M22 16.92v2a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 3.18 2 2 0 0 1 4.11 1h2a2 2 0 0 1 2 1.72c.12.9.33 1.78.63 2.62a2 2 0 0 1-.45 2.11L7.1 8.9a16 16 0 0 0 8 8l1.45-1.19a2 2 0 0 1 2.11-.45c.84.3 1.72.51 2.62.63A2 2 0 0 1 22 16.92Z" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'card-share-app',
-    label: 'Share App',
-    description: 'Open share app module',
-    route: '/share-app',
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <circle cx="6" cy="12" r="2.2" stroke="white" strokeWidth="1.8" />
-        <circle cx="18" cy="6" r="2.2" stroke="white" strokeWidth="1.8" />
-        <circle cx="18" cy="18" r="2.2" stroke="white" strokeWidth="1.8" />
-        <path d="M8 11l7.6-4.1M8 13l7.6 4.1" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'card-achievements',
-    label: 'Achievements',
-    description: 'Open achievements module',
-    route: '/achievements',
-    gradient: 'linear-gradient(135deg, #7C3AED 0%, #2563EB 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="9" r="4.2" stroke="white" strokeWidth="1.8" />
-        <path d="M8.8 13.4L7 21l5-2.3L17 21l-1.8-7.6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
     id: 'card-theme',
     label: 'Theme',
     description: 'Preview and manage visual themes',
@@ -410,47 +238,6 @@ const MODULE_CARDS = [
     ),
   },
   {
-    id: 'card-profile',
-    label: 'Profile',
-    description: 'View member profile details by member id',
-    route: '/member-profile',
-    gradient: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="8" r="3.3" stroke="white" strokeWidth="1.8" />
-        <path d="M5 19c0-3.2 2.9-5.8 7-5.8s7 2.6 7 5.8" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-        <rect x="16.3" y="14.5" width="5.2" height="5.2" rx="1.2" stroke="white" strokeWidth="1.6" />
-      </svg>
-    ),
-  },
-  {
-    id: 'card-donations',
-    label: 'Donations',
-    description: 'Manage donation forms and entries',
-    route: '/donations',
-    gradient: 'linear-gradient(135deg, #16A34A 0%, #0EA5E9 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="8.5" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.16)" />
-        <path d="M12 7v10M9 10.2c0-1.3 1.2-2.2 3-2.2s3 .9 3 2.2c0 1.2-.96 1.8-2.4 2.15l-1.2.3C9.96 13 9 13.6 9 14.8 9 16.1 10.2 17 12 17s3-.9 3-2.2" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'card-executive-body',
-    label: 'Executive Body',
-    description: 'View trust executive members by role',
-    route: '/executive-body',
-    gradient: 'linear-gradient(135deg, #0F766E 0%, #2563EB 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="7.5" r="3" stroke="white" strokeWidth="1.8" />
-        <path d="M6 19c0-2.9 2.7-5.2 6-5.2s6 2.3 6 5.2" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M4.5 9.5h3M16.5 9.5h3" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
     id: 'card-nominations',
     label: 'Nominations',
     description: 'Manage nomination workflows and review entries',
@@ -480,68 +267,11 @@ const MODULE_CARDS = [
   },
 ];
 
-const APP_DESIGN_CARD_IDS = new Set(['card-logo', 'card-theme', 'card-feature-control', 'card-sub-feature-control', 'card-features-2-o']);
+const APP_DESIGN_CARD_IDS = new Set(['card-theme', 'card-feature-control', 'card-sub-feature-control', 'card-features-2-o']);
 const COMPANY_DETAILS_CARD_IDS = new Set(['card-trust', 'card-social-media-account-details', 'card-create-video', 'card-bank-details']);
 const DASHBOARD_CARD_IDS = new Set();
-const HOME_PAGE_CARD_IDS = new Set(['card-sponsor', 'card-gallery', 'card-marquee']);
-const QUICK_ACTION_CARD_IDS = new Set(['card-profile', 'card-executive-body', 'card-noticeboard', 'card-events', 'card-facilities', 'card-donations', 'card-members', 'card-achievements']);
 const EXTRA_CARD_IDS = new Set(['card-linked-trusts', 'card-nominations', 'card-bulk-members-upload']);
 const MENU_MODULE_CARDS = [
-  {
-    id: 'card-notifications',
-    label: 'Notifications',
-    description: 'Manage alerts and notifications',
-    route: '/notification',
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="18.5" cy="5.5" r="2.2" fill="rgba(255,255,255,0.9)" />
-      </svg>
-    ),
-  },
-  {
-    id: 'card-share-app',
-    label: 'Share App',
-    description: 'Open share app module',
-    route: '/share-app',
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <circle cx="6" cy="12" r="2.2" stroke="white" strokeWidth="1.8" />
-        <circle cx="18" cy="6" r="2.2" stroke="white" strokeWidth="1.8" />
-        <circle cx="18" cy="18" r="2.2" stroke="white" strokeWidth="1.8" />
-        <path d="M8 11l7.6-4.1M8 13l7.6 4.1" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'menu-card-product',
-    label: 'Product',
-    description: 'Open product creation wizard',
-    route: '/social-media/product',
-    gradient: 'linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <path d="M3 7.5L12 3l9 4.5-9 4.5L3 7.5Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M3 7.5V16.5L12 21l9-4.5V7.5" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M12 12v9" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'menu-card-contact-us',
-    label: 'Contact Us',
-    description: 'Manage contact details',
-    route: '/contact-us',
-    gradient: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <path d="M22 16.92v2a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 3.18 2 2 0 0 1 4.11 1h2a2 2 0 0 1 2 1.72c.12.9.33 1.78.63 2.62a2 2 0 0 1-.45 2.11L7.1 8.9a16 16 0 0 0 8 8l1.45-1.19a2 2 0 0 1 2.11-.45c.84.3 1.72.51 2.62.63A2 2 0 0 1 22 16.92Z" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
   {
     id: 'menu-card-my-family',
     label: 'My Family',
@@ -577,8 +307,6 @@ const NAV_SECTION_TITLES = {
   menu: 'Menu',
   'company-details': 'Company Details',
   'app-design': 'App Design',
-  'home-page': 'Home Page',
-  'quick-actions': 'Quick Actions',
   extra: 'Extra',
 };
 
@@ -879,12 +607,6 @@ export default function Dashboard() {
     }
     if (currentSidebarNavKey === 'company-details') {
       return MODULE_CARDS.filter((card) => COMPANY_DETAILS_CARD_IDS.has(card.id));
-    }
-    if (currentSidebarNavKey === 'home-page') {
-      return MODULE_CARDS.filter((card) => HOME_PAGE_CARD_IDS.has(card.id));
-    }
-    if (currentSidebarNavKey === 'quick-actions') {
-      return MODULE_CARDS.filter((card) => QUICK_ACTION_CARD_IDS.has(card.id));
     }
     if (currentSidebarNavKey === 'extra') {
       return MODULE_CARDS.filter((card) => EXTRA_CARD_IDS.has(card.id));

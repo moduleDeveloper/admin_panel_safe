@@ -257,7 +257,7 @@ export default function MemberImport({ onComplete }) {
       onComplete();
       return;
     }
-    navigate('/members?page=1', {
+    navigate('/dashboard', {
       state: {
         userName,
         trust: selectedTrust,
