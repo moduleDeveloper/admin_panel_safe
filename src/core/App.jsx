@@ -1,59 +1,58 @@
-import { Suspense, lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import './index.css';
 
-const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
-const OtpPage = lazy(() => import('../features/auth/pages/OtpPage'));
-const SelectTrustPage = lazy(() => import('../features/company-details/pages/SelectTrustPage'));
-const CreateTrustPage = lazy(() => import('../features/company-details/pages/CreateTrustPage'));
-const Dashboard = lazy(() => import('../features/dashboard/pages/Dashboard'));
-const TrusteesPage = lazy(() => import('../features/company-details/pages/TrusteesPage'));
-const TrustDetails = lazy(() => import('../features/company-details/pages/TrustDetails'));
-const OtherMembershipPage = lazy(() => import('../features/extra/pages/OtherMembershipPage'));
-const MyFamilyPage = lazy(() => import('../features/extra/pages/MyFamilyPage'));
-const ThemePage = lazy(() => import('../features/app-design/pages/theme/ThemePage'));
-const FeatureControlPage = lazy(() => import('../features/menu/pages/FeatureControlPage'));
-const SubFeatureControlPage = lazy(() => import('../features/menu/pages/SubFeatureControlPage'));
-const Features20Page = lazy(() => import('../features/menu/pages/Features20Page'));
-const UserManagementPage = lazy(() => import('../features/user-management/pages/UserManagementPage'));
-const SocialMediaPage = lazy(() => import('../features/social-media/pages/SocialMediaPage'));
-const WhatsappPage = lazy(() => import('../features/whatsapp/pages/WhatsappPage'));
-const ServiceProviderPage = lazy(() => import('../features/whatsapp/pages/ServiceProviderPage'));
-const WhatsappMediaPage = lazy(() => import('../features/whatsapp/pages/WhatsappMediaPage'));
-const WhatsappTemplatePage = lazy(() => import('../features/whatsapp/pages/WhatsappTemplatePage'));
-const WaCampPage = lazy(() => import('../features/whatsapp/pages/WaCampPage'));
-const WaCampAudiencePage = lazy(() => import('../features/whatsapp/pages/WaCampAudiencePage'));
-const BankDetailsPage = lazy(() => import('../features/company-details/pages/BankDetailsPage'));
-const CreateVideoPage = lazy(() => import('../features/social-media/pages/CreateVideoPage'));
-const LinkedTrustsPage = lazy(() => import('../features/company-details/pages/LinkedTrustsPage'));
-const NominationsPage = lazy(() => import('../features/extra/pages/NominationsPage'));
-const MemberImportPage = lazy(() => import('../features/user-management/components/MemberImport'));
-const SalesMarketingPage = lazy(() => import('../features/sales-marketing/pages/SalesMarketingPage'));
-const LeadManagementPage = lazy(() => import('../features/sales-marketing/pages/LeadManagementPage'));
-const LeadDetailsPage = lazy(() => import('../features/sales-marketing/pages/LeadDetailsPage'));
-const CampaignPage = lazy(() => import('../features/sales-marketing/pages/CampaignPage'));
-const AddLeadsPage = lazy(() => import('../features/sales-marketing/pages/AddLeadsPage'));
+const LoginPage = lazy(() => import('../features/auth/pages/LoginPage.jsx'));
+const OtpPage = lazy(() => import('../features/auth/pages/OtpPage.jsx'));
+const SelectTrustPage = lazy(() => import('../features/company-details/pages/SelectTrustPage.jsx'));
+const CreateTrustPage = lazy(() => import('../features/company-details/pages/CreateTrustPage.jsx'));
+const Dashboard = lazy(() => import('../features/dashboard/pages/Dashboard.jsx'));
+const TrustDetails = lazy(() => import('../features/company-details/pages/TrustDetails.jsx'));
+const TrusteesPage = lazy(() => import('../features/company-details/pages/TrusteesPage.jsx'));
+const MemberImport = lazy(() => import('../features/user-management/components/MemberImport.jsx'));
+const MyFamilyPage = lazy(() => import('../features/extra/pages/MyFamilyPage.jsx'));
+const OtherMembershipPage = lazy(() => import('../features/extra/pages/OtherMembershipPage.jsx'));
+const ThemePage = lazy(() => import('../features/app-design/pages/theme/ThemePage.jsx'));
+const FeatureControlPage = lazy(() => import('../features/menu/pages/FeatureControlPage.jsx'));
+const SubFeatureControlPage = lazy(() => import('../features/menu/pages/SubFeatureControlPage.jsx'));
+const Features20Page = lazy(() => import('../features/menu/pages/Features20Page.jsx'));
+const UserManagementPage = lazy(() => import('../features/user-management/pages/UserManagementPage.jsx'));
+const SalesMarketingPage = lazy(() => import('../features/sales-marketing/pages/SalesMarketingPage.jsx'));
+const CampaignPage = lazy(() => import('../features/sales-marketing/pages/CampaignPage.jsx'));
+const AddLeadsPage = lazy(() => import('../features/sales-marketing/pages/AddLeadsPage.jsx'));
+const LeadManagementPage = lazy(() => import('../features/sales-marketing/pages/LeadManagementPage.jsx'));
+const LeadDetailsPage = lazy(() => import('../features/sales-marketing/pages/LeadDetailsPage.jsx'));
+const SocialMediaPage = lazy(() => import('../features/social-media/pages/SocialMediaPage.jsx'));
+const WhatsappPage = lazy(() => import('../features/whatsapp/pages/WhatsappPage.jsx'));
+const ServiceProviderPage = lazy(() => import('../features/whatsapp/pages/ServiceProviderPage.jsx'));
+const WhatsappMediaPage = lazy(() => import('../features/whatsapp/pages/WhatsappMediaPage.jsx'));
+const WhatsappTemplatePage = lazy(() => import('../features/whatsapp/pages/WhatsappTemplatePage.jsx'));
+const WaCampPage = lazy(() => import('../features/whatsapp/pages/WaCampPage.jsx'));
+const WaCampAudiencePage = lazy(() => import('../features/whatsapp/pages/WaCampAudiencePage.jsx'));
+const BankDetailsPage = lazy(() => import('../features/company-details/pages/BankDetailsPage.jsx'));
+const CreateVideoPage = lazy(() => import('../features/social-media/pages/CreateVideoPage.jsx'));
+const LinkedTrustsPage = lazy(() => import('../features/company-details/pages/LinkedTrustsPage.jsx'));
+const NominationsPage = lazy(() => import('../features/extra/pages/NominationsPage.jsx'));
 
 function App() {
   return (
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
+    <BrowserRouter basename="/">
       <Suspense fallback={<div style={{ padding: 16 }}>Loading module...</div>}>
         <Routes>
-          <Route path="/"             element={<Navigate to="/login" replace />} />
-          <Route path="/login"        element={<LoginPage />} />
-          <Route path="/verify-otp"   element={<OtpPage />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/verify-otp" element={<OtpPage />} />
           <Route path="/select-trust" element={<SelectTrustPage />} />
           <Route path="/create-trust" element={<CreateTrustPage />} />
-          <Route path="/dashboard"    element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/trust-details" element={<TrustDetails />} />
-          <Route path="/trustees"     element={<TrusteesPage />} />
-          <Route path="/members/bulk-upload" element={<MemberImportPage />} />
+          <Route path="/trustees" element={<TrusteesPage />} />
+          <Route path="/members/bulk-upload" element={<MemberImport />} />
           <Route path="/my-family" element={<MyFamilyPage />} />
           <Route path="/my-family/create_family_member" element={<MyFamilyPage />} />
           <Route path="/other-membership" element={<OtherMembershipPage />} />
           <Route path="/other-membership/create_other_membership" element={<OtherMembershipPage />} />
           <Route path="/other-sponsorship" element={<OtherMembershipPage />} />
-          <Route path="/theme"        element={<ThemePage />} />
+          <Route path="/theme" element={<ThemePage />} />
           <Route path="/feature-control" element={<FeatureControlPage />} />
           <Route path="/sub-feature-control" element={<SubFeatureControlPage />} />
           <Route path="/features-2-o" element={<Features20Page />} />
