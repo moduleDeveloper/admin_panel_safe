@@ -1,0 +1,145 @@
+/* OTP page additions for LP layout */
+.lp-highlight {
+  display: block;
+  margin-top: 6px;
+  font-weight: 700;
+  color: #6366F1;
+  letter-spacing: 0.3px;
+}
+
+.lp-otp-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid rgba(99,102,241,0.18);
+  border-radius: 13px;
+  background: white;
+  padding: 10px;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.06);
+}
+
+.lp-otp-wrap:focus-within {
+  border-color: #6366F1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.12), 0 2px 8px rgba(99,102,241,0.08);
+}
+
+.lp-otp-wrap.has-error {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.1);
+}
+
+.lp-otp-wrap.shake {
+  animation: lpShake 0.42s ease;
+}
+
+.lp-otp-boxes {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.lp-otp-box {
+  width: 46px;
+  height: 54px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: 'Poppins', sans-serif;
+  color: #1E1F3B;
+  background: #F9FAFF;
+  border: 1.5px solid rgba(99,102,241,0.18);
+  border-radius: 12px;
+  caret-color: #6366F1;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.lp-otp-box:focus {
+  border-color: #6366F1;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+
+.lp-otp-box.filled {
+  border-color: #6366F1;
+  background: white;
+  color: #4F46E5;
+}
+
+.lp-otp-box.success {
+  border-color: #10B981 !important;
+  background: rgba(16,185,129,0.08) !important;
+  color: #10B981 !important;
+}
+
+.lp-success {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #10B981;
+  font-weight: 600;
+}
+
+.lp-btn.success {
+  background: linear-gradient(135deg, #10B981, #34D399);
+  box-shadow: 0 8px 22px rgba(16,185,129,0.35);
+}
+
+.lp-resend {
+  margin-top: -4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: #9CA3AF;
+}
+
+.lp-resend-count strong {
+  color: #6366F1;
+  font-weight: 700;
+}
+
+.lp-resend-btn {
+  background: none;
+  border: none;
+  color: #6366F1;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.lp-resend-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lp-back {
+  margin: 2px auto 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #9CA3AF;
+}
+
+.lp-back:hover {
+  color: #6B7280;
+}
+
+@media (max-width: 420px) {
+  .lp-otp-box {
+    width: 40px;
+    height: 50px;
+    font-size: 18px;
+  }
+  .lp-otp-boxes { gap: 7px; }
+}
