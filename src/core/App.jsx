@@ -10,7 +10,6 @@ const TrustDetails = lazy(() => import('../features/company-details/pages/TrustD
 const TrusteesPage = lazy(() => import('../features/company-details/pages/TrusteesPage.jsx'));
 const MemberImport = lazy(() => import('../features/user-management/components/MemberImport.jsx'));
 const MyFamilyPage = lazy(() => import('../features/extra/pages/MyFamilyPage.jsx'));
-const OtherMembershipPage = lazy(() => import('../features/extra/pages/OtherMembershipPage.jsx'));
 const ThemePage = lazy(() => import('../features/app-design/pages/theme/ThemePage.jsx'));
 const FeatureControlPage = lazy(() => import('../features/menu/pages/FeatureControlPage.jsx'));
 const SubFeatureControlPage = lazy(() => import('../features/menu/pages/SubFeatureControlPage.jsx'));
@@ -49,9 +48,6 @@ function App() {
           <Route path="/members/bulk-upload" element={<MemberImport />} />
           <Route path="/my-family" element={<MyFamilyPage />} />
           <Route path="/my-family/create_family_member" element={<MyFamilyPage />} />
-          <Route path="/other-membership" element={<OtherMembershipPage />} />
-          <Route path="/other-membership/create_other_membership" element={<OtherMembershipPage />} />
-          <Route path="/other-sponsorship" element={<OtherMembershipPage />} />
           <Route path="/theme" element={<ThemePage />} />
           <Route path="/feature-control" element={<FeatureControlPage />} />
           <Route path="/sub-feature-control" element={<SubFeatureControlPage />} />

@@ -7,7 +7,6 @@ const MEMBER_TABLE_CANDIDATES = ['Members', 'members'];
 const MEMBER_PROFILE_TABLE_CANDIDATES = ['member_profiles'];
 const FAMILY_MEMBERS_TABLE_CANDIDATES = ['family_members'];
 const MEMBER_NOMINATIONS_TABLE_CANDIDATES = ['member_nominations'];
-const OTHER_MEMBERSHIPS_TABLE_CANDIDATES = ['other_memberships'];
 const MEMBER_ROLES_TABLE = 'member_roles';
 const PROFILE_PHOTO_BUCKET = 'profile_photo';
 const MEMBER_FETCH_CHUNK_SIZE = 100;
@@ -230,22 +229,6 @@ function normalizeFamilyMemberRow(row = {}) {
   };
 }
 
-function normalizeOtherMembershipRow(row = {}) {
-  return {
-    id: pickFirst(row, ['id']),
-    member_id: pickFirst(row, ['member_id']),
-    member_name: pickFirst(row, ['member_name']) || '',
-    member_phone: pickFirst(row, ['member_phone']) || '',
-    trust_id: pickFirst(row, ['trust_id']),
-    organisation_name: pickFirst(row, ['organisation_name']) || '',
-    membership_no: pickFirst(row, ['membership_no']) || '',
-    membership_type: pickFirst(row, ['membership_type']) || '',
-    is_active: pickFirst(row, ['is_active']) !== false,
-    remark: pickFirst(row, ['remark']) || '',
-    created_at: pickFirst(row, ['created_at']) || null,
-  };
-}
-
 function normalizeMemberNominationRow(row = {}) {
   return {
     id: pickFirst(row, ['id']),
@@ -257,20 +240,6 @@ function normalizeMemberNominationRow(row = {}) {
     status: pickFirst(row, ['status']) || 'pending',
     created_at: pickFirst(row, ['created_at']) || null,
     updated_at: pickFirst(row, ['updated_at']) || null,
-  };
-}
-
-function buildOtherMembershipPayload(payload = {}, trustId = null) {
-  return {
-    member_id: payload.member_id?.trim() || null,
-    member_name: payload.member_name?.trim() || null,
-    member_phone: payload.member_phone?.trim() || null,
-    trust_id: trustId || payload.trust_id || null,
-    organisation_name: payload.organisation_name?.trim() || null,
-    membership_no: payload.membership_no?.trim() || '',
-    membership_type: payload.membership_type?.trim() || null,
-    is_active: payload.is_active !== false,
-    remark: payload.remark?.trim() || null,
   };
 }
 
@@ -523,98 +492,6 @@ export async function uploadMemberProfilePhoto(memberId, file) {
     },
     error: null,
   };
-}
-
-export async function fetchOtherMembershipsByMemberId(memberId) {
-  if (!memberId) return { data: [], error: null };
-  const cacheKey = `members:other-memberships:${memberId}`;
-
-  return cachedQuery(cacheKey, async () => {
-    const table = await resolveTable(OTHER_MEMBERSHIPS_TABLE_CANDIDATES, 'other_memberships');
-    const { data, error } = await supabase
-      .from(table)
-      .select('*')
-      .eq('member_id', memberId)
-      .order('created_at', { ascending: false, nullsFirst: false });
-
-    if (error) return { data: [], error };
-    return { data: (data || []).map(normalizeOtherMembershipRow), error: null };
-  }, 12000);
-}
-
-export async function fetchOtherMembershipsByTrustId(trustId) {
-  if (!trustId) return { data: [], error: null };
-  const cacheKey = `members:other-memberships:trust:${trustId}`;
-
-  return cachedQuery(cacheKey, async () => {
-    const table = await resolveTable(OTHER_MEMBERSHIPS_TABLE_CANDIDATES, 'other_memberships');
-    const { data, error } = await supabase
-      .from(table)
-      .select('*')
-      .eq('trust_id', trustId)
-      .order('created_at', { ascending: false, nullsFirst: false });
-
-    if (error) return { data: [], error };
-    return { data: (data || []).map(normalizeOtherMembershipRow), error: null };
-  }, 12000);
-}
-
-export async function fetchOtherMembershipById(otherMembershipId) {
-  if (!otherMembershipId) return { data: null, error: { message: 'Other membership id is required.' } };
-
-  const table = await resolveTable(OTHER_MEMBERSHIPS_TABLE_CANDIDATES, 'other_memberships');
-  const { data, error } = await supabase
-    .from(table)
-    .select('*')
-    .eq('id', otherMembershipId)
-    .maybeSingle();
-
-  if (error) return { data: null, error };
-  return { data: data ? normalizeOtherMembershipRow(data) : null, error: null };
-}
-
-export async function createOtherMembership(payload = {}, trustId = null) {
-  if (!payload?.membership_no?.trim()) {
-    return { data: null, error: { message: 'Membership No is required.' } };
-  }
-
-  const table = await resolveTable(OTHER_MEMBERSHIPS_TABLE_CANDIDATES, 'other_memberships');
-  const insertPayload = buildOtherMembershipPayload(payload, trustId);
-  const { data, error } = await supabase
-    .from(table)
-    .insert([insertPayload])
-    .select('*')
-    .single();
-
-  if (error) return { data: null, error };
-  invalidateMemberCaches();
-  return { data: normalizeOtherMembershipRow(data), error: null };
-}
-
-export async function updateOtherMembership(otherMembershipId, payload = {}, trustId = null) {
-  if (!otherMembershipId) return { data: null, error: { message: 'Other membership id is required.' } };
-  if (!payload?.membership_no?.trim()) return { data: null, error: { message: 'Membership No is required.' } };
-
-  const table = await resolveTable(OTHER_MEMBERSHIPS_TABLE_CANDIDATES, 'other_memberships');
-  const updatePayload = buildOtherMembershipPayload(payload, trustId);
-  const { data, error } = await supabase
-    .from(table)
-    .update(updatePayload)
-    .eq('id', otherMembershipId)
-    .select('*')
-    .single();
-
-  if (error) return { data: null, error };
-  invalidateMemberCaches();
-  return { data: normalizeOtherMembershipRow(data), error: null };
-}
-
-export async function deleteOtherMembership(otherMembershipId) {
-  if (!otherMembershipId) return { error: { message: 'Other membership id is required.' } };
-  const table = await resolveTable(OTHER_MEMBERSHIPS_TABLE_CANDIDATES, 'other_memberships');
-  const { error } = await supabase.from(table).delete().eq('id', otherMembershipId);
-  if (!error) invalidateMemberCaches();
-  return { error };
 }
 
 export async function createFamilyMember(memberId, payload = {}) {
