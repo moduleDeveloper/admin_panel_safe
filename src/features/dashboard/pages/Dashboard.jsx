@@ -192,38 +192,6 @@ const MODULE_CARDS = [
     ),
   },
   {
-    id: 'card-feature-control',
-    label: 'Feature Control',
-    description: 'Manage feature access & visibility',
-    route: '/feature-control',
-    temporarilyDeactivated: true,
-    deactivationText: 'Temporarily Deactivated',
-    gradient: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="4" width="18" height="16" rx="3" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.18)"/>
-        <path d="M8 9h8M8 12h5M8 15h3" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-        <circle cx="17.5" cy="15" r="2.2" stroke="white" strokeWidth="1.8"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'card-sub-feature-control',
-    label: 'Sub Feature Control',
-    description: 'Manage sub feature labels and visibility',
-    route: '/sub-feature-control',
-    temporarilyDeactivated: true,
-    deactivationText: 'Temporarily Deactivated',
-    gradient: 'linear-gradient(135deg, #0EA5E9 0%, #1D4ED8 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="4" width="18" height="16" rx="3" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.18)"/>
-        <path d="M8 9h8M8 12h8M8 15h5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-        <circle cx="17.5" cy="15" r="1.6" fill="white"/>
-      </svg>
-    ),
-  },
-  {
     id: 'card-features-2-o',
     label: 'Features2.O',
     description: 'Merged access for feature and sub feature controls',
@@ -267,7 +235,7 @@ const MODULE_CARDS = [
   },
 ];
 
-const APP_DESIGN_CARD_IDS = new Set(['card-theme', 'card-feature-control', 'card-sub-feature-control', 'card-features-2-o']);
+const APP_DESIGN_CARD_IDS = new Set(['card-theme', 'card-features-2-o']);
 const COMPANY_DETAILS_CARD_IDS = new Set(['card-trust', 'card-social-media-account-details', 'card-create-video', 'card-bank-details']);
 const DASHBOARD_CARD_IDS = new Set();
 const EXTRA_CARD_IDS = new Set(['card-linked-trusts', 'card-nominations', 'card-bulk-members-upload']);
@@ -284,19 +252,6 @@ const MENU_MODULE_CARDS = [
         <circle cx="16.5" cy="9.5" r="2" stroke="white" strokeWidth="1.8" />
         <path d="M4.5 18c0-2.6 2.3-4.6 5.2-4.6s5.2 2 5.2 4.6" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
         <path d="M14.4 18c.36-1.46 1.5-2.5 3.2-2.8" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'menu-card-other-membership',
-    label: 'Other Membership',
-    description: 'View other memberships',
-    route: '/other-membership',
-    gradient: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="5" width="16" height="14" rx="2.3" stroke="white" strokeWidth="1.8" />
-        <path d="M8 10h8M8 14h5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -1126,13 +1081,12 @@ export default function Dashboard() {
                 <button
                   key={card.id}
                   id={card.id}
-                  className={`module-card ${card.temporarilyDeactivated ? 'is-deactivated' : ''}`}
+                  className="module-card"
                   style={{
                     background: card.gradient,
                     animationDelay: `${i * 0.08}s`,
                   }}
                   onClick={() => {
-                    if (card.temporarilyDeactivated) return;
                     const nextTrusteesView = card.id === 'card-logo' ? 'logo' : 'default';
                     const targetRoute =
                       card.route === '/trustees'
@@ -1154,12 +1108,8 @@ export default function Dashboard() {
                     });
                   }}
                   title={card.label}
-                  aria-disabled={card.temporarilyDeactivated ? 'true' : 'false'}
                 >
                   <div className="module-card-shine" />
-                  {card.temporarilyDeactivated && (
-                    <div className="module-card-deactivated-text">{card.deactivationText || 'Temporarily Deactivated'}</div>
-                  )}
                   <div className="module-icon-wrap">
                     {card.icon}
                   </div>
