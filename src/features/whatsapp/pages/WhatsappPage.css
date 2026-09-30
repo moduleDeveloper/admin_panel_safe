@@ -219,7 +219,7 @@
 }
 
 @media (max-width: 980px) {
-  .wa-header { padding-left: 66px; }
+  .wa-header { padding-right: 66px; }
   .wa-modules-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
