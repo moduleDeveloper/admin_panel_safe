@@ -124,6 +124,7 @@ function TrustDetails() {
     rows = 3,
     type = 'text',
     emptyText = 'Not set',
+    readOnly = false,
   }) => (
     <div className="info-item">
       <label className="info-label">{label}</label>
@@ -160,9 +161,11 @@ function TrustDetails() {
       ) : (
         <div className="info-content">
           <p className="info-value">{trust?.[field] || emptyText}</p>
-          <button onClick={() => handleEditClick(field)} className="btn-edit">
-            Edit
-          </button>
+          {!readOnly && (
+            <button onClick={() => handleEditClick(field)} className="btn-edit">
+              Edit
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -217,7 +220,7 @@ function TrustDetails() {
         {/* Trust Info Section */}
         <div className="info-section">
           <div className="info-row">
-            {renderEditableField({ field: 'name', label: 'APP NAME', emptyText: '-' })}
+            {renderEditableField({ field: 'name', label: 'APP NAME', emptyText: '-', readOnly: true })}
             {renderEditableField({ field: 'legal_name', label: 'LEGAL NAME' })}
           </div>
 

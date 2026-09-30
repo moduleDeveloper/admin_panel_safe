@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { fetchTrustDetails, updateTrustDetails } from '../../auth/services/authService';
-import { uploadTrustIcon } from '../services/trustService';
+import { fetchTrustDetails, updateTrustDetails, uploadTrustIcon } from '../services/trustService';
 import Sidebar from '../../../core/components/Sidebar';
 import { getAllowedImageFormatsMessage, prepareImageFileForUpload } from '../../../core/utils/imageUpload';
 import './TrusteesPage.css';
@@ -29,6 +28,13 @@ function normalizeRichContent(content = '') {
     .replace(/(^|>|\n)\s*Description\s*:\s*/gi, '$1')
     .trim();
 }
+
+const PencilIcon = () => (
+  <svg className="tp-edit-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M12 20h9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 // ── Collapsible rich-text section ────────────────────────────────────────────
 function ContentSection({
@@ -115,7 +121,8 @@ function ContentSection({
               </button>
             </>
           ) : (
-            <button className="tp-edit-btn" type="button" onClick={onEdit}>
+            <button className="tp-edit-btn tp-edit-trigger" type="button" onClick={onEdit}>
+              <PencilIcon />
               Edit
             </button>
           )}
@@ -139,7 +146,7 @@ function ContentSection({
             hasContent ? (
               <div className="tp-rich-content">
                 <div
-                  className="tp-rich-text"
+                  className={`tp-rich-text ${/<[a-z][^>]*>/i.test(content) ? '' : 'is-plain'}`}
                   dangerouslySetInnerHTML={{ __html: normalizeRichContent(content) }}
                 />
               </div>
@@ -237,7 +244,6 @@ export default function TrusteesPage() {
   useEffect(() => { loadTrust(); }, [loadTrust]);
 
   const trustName = trust?.name || trustFromState?.name || 'Trust';
-  const userInitials = initials(userName);
   const searchQuery = searchTerm.trim().toLowerCase();
   const hasSearchQuery = searchQuery.length > 0;
   const matchesQuery = (...values) => {
@@ -357,7 +363,6 @@ export default function TrusteesPage() {
     setSaveError('');
 
     const updates = {};
-    if (field === 'name') updates.name = draft.name.trim();
     if (field === 'legal') updates.legal_name = draft.legal_name.trim();
     if (field === 'remark') updates.remark = draft.remark.trim();
     if (field === 'gst') updates.gst_number = draft.gst_number.trim();
@@ -428,6 +433,14 @@ export default function TrusteesPage() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="tp-root">
+      {/* Soft animated background (decorative) */}
+      <div className="tp-bg" aria-hidden="true">
+        <span className="tp-bg-blob tp-bg-blob-1" />
+        <span className="tp-bg-blob tp-bg-blob-2" />
+        <span className="tp-bg-blob tp-bg-blob-3" />
+        <span className="tp-bg-blob tp-bg-blob-4" />
+      </div>
+
       <Sidebar
         trustName={trustName}
         onDashboard={() => navigate('/dashboard', { state: { userName, trust: trust || trustFromState, sidebarNavKey: currentSidebarNavKey } })}
@@ -444,15 +457,22 @@ export default function TrusteesPage() {
               className="tp-back-btn"
               onClick={() => navigate('/dashboard', { state: { userName, trust: trust || trustFromState, sidebarNavKey: currentSidebarNavKey } })}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Back
+              <span className="tp-back-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </span>
+              <span className="tp-back-text">Back</span>
             </button>
-            <div className="tp-topbar-titles">
-              <h1 className="tp-page-title">Trust Details</h1>
-              <p className="tp-page-subtitle">View and manage your trust information</p>
-            </div>
+          </div>
+
+          {/* Centered title */}
+          <div className="tp-topbar-titles">
+            <span className="tp-page-crumb">
+              {isLogoCardView ? 'App Design' : 'Company Details'}
+            </span>
+            <h1 className="tp-page-title">{isLogoCardView ? 'Logo & App Name' : 'Trust Details'}</h1>
+            <p className="tp-page-subtitle">View and manage your trust information</p>
           </div>
 
           <div className="tp-topbar-right">
@@ -471,10 +491,6 @@ export default function TrusteesPage() {
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
               />
-            </div>
-            <div className="tp-avatar-wrap">
-              <div className="tp-avatar-btn">{userInitials}</div>
-              <div className="tp-avatar-online"/>
             </div>
           </div>
         </header>
@@ -561,32 +577,8 @@ export default function TrusteesPage() {
                   </div>
                   <div className="tp-info-body">
                     <span className="tp-info-label">App Name</span>
-                    {!editMode.name ? (
-                      <span className="tp-info-value">{trust.name || '—'}</span>
-                    ) : (
-                      <input
-                        className="tp-edit-input"
-                        value={draft.name}
-                        onChange={e => setDraft(p => ({ ...p, name: e.target.value }))}
-                        placeholder="Enter app name"
-                      />
-                    )}
-                  </div>
-                  <div className="tp-info-actions">
-                    {!editMode.name ? (
-                      <button className="tp-edit-btn" onClick={() => startEdit('name')}>Edit</button>
-                    ) : (
-                      <div className="tp-edit-actions">
-                        <button className="tp-edit-btn ghost" onClick={cancelEdit}>Cancel</button>
-                        <button
-                          className="tp-edit-btn primary"
-                          onClick={() => saveField('name')}
-                          disabled={savingField === 'name'}
-                        >
-                          {savingField === 'name' ? 'Saving...' : 'Save'}
-                        </button>
-                      </div>
-                    )}
+                    {/* Name is set at creation only; trust_update rejects it. */}
+                    {trust.name && <span className="tp-info-value">{trust.name}</span>}
                   </div>
                     </div>
                     )}
@@ -605,7 +597,7 @@ export default function TrusteesPage() {
                   <div className="tp-info-body">
                     <span className="tp-info-label">Subheading / Remark</span>
                     {!editMode.remark ? (
-                      <span className="tp-info-value tp-remark-value">{trust.remark || '—'}</span>
+                      (trust.remark ? <span className="tp-info-value tp-remark-value">{trust.remark}</span> : null)
                     ) : (
                       <textarea
                         className="tp-edit-textarea"
@@ -618,7 +610,7 @@ export default function TrusteesPage() {
                   </div>
                   <div className="tp-info-actions">
                     {!editMode.remark ? (
-                      <button className="tp-edit-btn" onClick={() => startEdit('remark')}>Edit</button>
+                      <button className="tp-edit-btn tp-edit-trigger" onClick={() => startEdit('remark')}><PencilIcon />Edit</button>
                     ) : (
                       <div className="tp-edit-actions">
                         <button className="tp-edit-btn ghost" onClick={cancelEdit}>Cancel</button>
@@ -699,7 +691,7 @@ export default function TrusteesPage() {
                   </div>
                   <div className="tp-info-actions">
                     {!editMode.logo ? (
-                      <button className="tp-edit-btn" onClick={() => startEdit('logo')}>Edit</button>
+                      <button className="tp-edit-btn tp-edit-trigger" onClick={() => startEdit('logo')}><PencilIcon />Edit</button>
                     ) : (
                       <div className="tp-edit-actions">
                         <button className="tp-edit-btn ghost" onClick={cancelEdit}>Cancel</button>
@@ -739,7 +731,7 @@ export default function TrusteesPage() {
                       <div className="tp-info-body">
                         <span className="tp-info-label">Legal Name</span>
                         {!editMode.legal ? (
-                          <span className="tp-info-value tp-legal-value">{trust.legal_name || '—'}</span>
+                          (trust.legal_name ? <span className="tp-info-value tp-legal-value">{trust.legal_name}</span> : null)
                         ) : (
                           <input
                             className="tp-edit-input"
@@ -751,7 +743,7 @@ export default function TrusteesPage() {
                       </div>
                       <div className="tp-info-actions">
                         {!editMode.legal ? (
-                          <button className="tp-edit-btn" onClick={() => startEdit('legal')}>Edit</button>
+                          <button className="tp-edit-btn tp-edit-trigger" onClick={() => startEdit('legal')}><PencilIcon />Edit</button>
                         ) : (
                           <div className="tp-edit-actions">
                             <button className="tp-edit-btn ghost" onClick={cancelEdit}>Cancel</button>
@@ -779,7 +771,7 @@ export default function TrusteesPage() {
                       <div className="tp-info-body">
                         <span className="tp-info-label">GST Number</span>
                         {!editMode.gst ? (
-                          <span className="tp-info-value">{trust.gst_number || '—'}</span>
+                          (trust.gst_number ? <span className="tp-info-value">{trust.gst_number}</span> : null)
                         ) : (
                           <input
                             className="tp-edit-input"
@@ -791,7 +783,7 @@ export default function TrusteesPage() {
                       </div>
                       <div className="tp-info-actions">
                         {!editMode.gst ? (
-                          <button className="tp-edit-btn" onClick={() => startEdit('gst')}>Edit</button>
+                          <button className="tp-edit-btn tp-edit-trigger" onClick={() => startEdit('gst')}><PencilIcon />Edit</button>
                         ) : (
                           <div className="tp-edit-actions">
                             <button className="tp-edit-btn ghost" onClick={cancelEdit}>Cancel</button>
@@ -815,7 +807,7 @@ export default function TrusteesPage() {
                       <div className="tp-info-body">
                         <span className="tp-info-label">PAN Number</span>
                         {!editMode.pan ? (
-                          <span className="tp-info-value">{trust.pan_number || '—'}</span>
+                          (trust.pan_number ? <span className="tp-info-value">{trust.pan_number}</span> : null)
                         ) : (
                           <input
                             className="tp-edit-input"
@@ -827,7 +819,7 @@ export default function TrusteesPage() {
                       </div>
                       <div className="tp-info-actions">
                         {!editMode.pan ? (
-                          <button className="tp-edit-btn" onClick={() => startEdit('pan')}>Edit</button>
+                          <button className="tp-edit-btn tp-edit-trigger" onClick={() => startEdit('pan')}><PencilIcon />Edit</button>
                         ) : (
                           <div className="tp-edit-actions">
                             <button className="tp-edit-btn ghost" onClick={cancelEdit}>Cancel</button>
@@ -851,7 +843,7 @@ export default function TrusteesPage() {
                       <div className="tp-info-body">
                         <span className="tp-info-label">Website</span>
                         {!editMode.website ? (
-                          <span className="tp-info-value">{trust.website || '—'}</span>
+                          (trust.website ? <span className="tp-info-value">{trust.website}</span> : null)
                         ) : (
                           <input
                             className="tp-edit-input"
@@ -863,7 +855,7 @@ export default function TrusteesPage() {
                       </div>
                       <div className="tp-info-actions">
                         {!editMode.website ? (
-                          <button className="tp-edit-btn" onClick={() => startEdit('website')}>Edit</button>
+                          <button className="tp-edit-btn tp-edit-trigger" onClick={() => startEdit('website')}><PencilIcon />Edit</button>
                         ) : (
                           <div className="tp-edit-actions">
                             <button className="tp-edit-btn ghost" onClick={cancelEdit}>Cancel</button>
@@ -887,7 +879,7 @@ export default function TrusteesPage() {
                       <div className="tp-info-body">
                         <span className="tp-info-label">Email ID</span>
                         {!editMode.email ? (
-                          <span className="tp-info-value">{trust.email_id || '—'}</span>
+                          (trust.email_id ? <span className="tp-info-value">{trust.email_id}</span> : null)
                         ) : (
                           <input
                             className="tp-edit-input"
@@ -899,7 +891,7 @@ export default function TrusteesPage() {
                       </div>
                       <div className="tp-info-actions">
                         {!editMode.email ? (
-                          <button className="tp-edit-btn" onClick={() => startEdit('email')}>Edit</button>
+                          <button className="tp-edit-btn tp-edit-trigger" onClick={() => startEdit('email')}><PencilIcon />Edit</button>
                         ) : (
                           <div className="tp-edit-actions">
                             <button className="tp-edit-btn ghost" onClick={cancelEdit}>Cancel</button>
@@ -923,7 +915,7 @@ export default function TrusteesPage() {
                       <div className="tp-info-body">
                         <span className="tp-info-label">Remark 1</span>
                         {!editMode.remark1 ? (
-                          <span className="tp-info-value">{trust.remark1 || '—'}</span>
+                          (trust.remark1 ? <span className="tp-info-value">{trust.remark1}</span> : null)
                         ) : (
                           <textarea
                             className="tp-edit-textarea"
@@ -936,7 +928,7 @@ export default function TrusteesPage() {
                       </div>
                       <div className="tp-info-actions">
                         {!editMode.remark1 ? (
-                          <button className="tp-edit-btn" onClick={() => startEdit('remark1')}>Edit</button>
+                          <button className="tp-edit-btn tp-edit-trigger" onClick={() => startEdit('remark1')}><PencilIcon />Edit</button>
                         ) : (
                           <div className="tp-edit-actions">
                             <button className="tp-edit-btn ghost" onClick={cancelEdit}>Cancel</button>
@@ -960,7 +952,7 @@ export default function TrusteesPage() {
                       <div className="tp-info-body">
                         <span className="tp-info-label">Remark 2</span>
                         {!editMode.remark2 ? (
-                          <span className="tp-info-value">{trust.remark2 || '—'}</span>
+                          (trust.remark2 ? <span className="tp-info-value">{trust.remark2}</span> : null)
                         ) : (
                           <textarea
                             className="tp-edit-textarea"
@@ -973,7 +965,7 @@ export default function TrusteesPage() {
                       </div>
                       <div className="tp-info-actions">
                         {!editMode.remark2 ? (
-                          <button className="tp-edit-btn" onClick={() => startEdit('remark2')}>Edit</button>
+                          <button className="tp-edit-btn tp-edit-trigger" onClick={() => startEdit('remark2')}><PencilIcon />Edit</button>
                         ) : (
                           <div className="tp-edit-actions">
                             <button className="tp-edit-btn ghost" onClick={cancelEdit}>Cancel</button>
@@ -997,7 +989,7 @@ export default function TrusteesPage() {
                       <div className="tp-info-body">
                         <span className="tp-info-label">Remark 3</span>
                         {!editMode.remark3 ? (
-                          <span className="tp-info-value">{trust.remark3 || '—'}</span>
+                          (trust.remark3 ? <span className="tp-info-value">{trust.remark3}</span> : null)
                         ) : (
                           <textarea
                             className="tp-edit-textarea"
@@ -1010,7 +1002,7 @@ export default function TrusteesPage() {
                       </div>
                       <div className="tp-info-actions">
                         {!editMode.remark3 ? (
-                          <button className="tp-edit-btn" onClick={() => startEdit('remark3')}>Edit</button>
+                          <button className="tp-edit-btn tp-edit-trigger" onClick={() => startEdit('remark3')}><PencilIcon />Edit</button>
                         ) : (
                           <div className="tp-edit-actions">
                             <button className="tp-edit-btn ghost" onClick={cancelEdit}>Cancel</button>
@@ -1032,8 +1024,12 @@ export default function TrusteesPage() {
               </div>
 
               {/* ── CONTENT SECTIONS (Terms & Privacy) ── */}
-              {!isLogoCardView && (
+              {!isLogoCardView && (showTermsSection || showPrivacySection) && (
               <div className="tp-sections-wrap">
+                <div className="tp-info-group-head">
+                  <h3>Policies</h3>
+                  <p>Terms &amp; conditions and privacy policy shown in the app</p>
+                </div>
                 {showTermsSection && (
                 <ContentSection
                   title="Terms & Conditions"
