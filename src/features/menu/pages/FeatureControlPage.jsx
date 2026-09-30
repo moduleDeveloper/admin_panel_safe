@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PageHeader from '../../../core/components/PageHeader';
 import Sidebar from '../../../core/components/Sidebar';
 import FeatureControlTable from '../components/feature-control/FeatureControlTable';
 import FeatureEditModal from '../components/feature-control/FeatureEditModal';
+import FeatureViewModal from '../components/feature-control/FeatureViewModal';
 import { fetchLinkedTrusts } from '../../auth/services/authService';
 import {
   fetchMasterFeatures,
-  fetchSubFeatureCountsByFeatureIds,
   fetchFeatureFlagsByTrustAndTier,
   mergeFeaturesWithFlags,
   mergeSingleFeatureWithFlag,
@@ -24,75 +24,15 @@ function normalizeQuickOrder(value) {
 const DISPLAY_IN_APP_HOME = 'home';
 const DISPLAY_IN_APP_SIDEBAR = 'sideBar';
 
-const HOME_ONLY_PLACEMENT_KEYS = new Set([
-  'feature_gallery',
-  'feature_sponsors',
-  'feature_marquee',
-  'feature_trustlist',
-  'feature_trust_list',
-  'feature_developer_info',
-  'feature_member_banner',
-  'trustlist',
-  'trust_list',
-  'developers',
-  'developer_info',
-  'developerinfo',
-  'memberbanner',
-  'member_banner',
-]);
-
-const SIDEBAR_ONLY_PLACEMENT_KEYS = new Set([
-  'feature_nomination_details',
-  'feature_nomination',
-  'nomination_details',
-  'nomination',
-  'feature_profile',
-  'profile',
-  'user_profile',
-]);
-
 const normalizeDisplayInApp = (value) => String(value || DISPLAY_IN_APP_HOME).trim().toLowerCase();
 
-const normalizePlacementKey = (value) =>
-  String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\/[^/]+/i, '')
-    .replace(/[?#].*$/, '')
-    .replace(/^\/+|\/+$/g, '')
-    .replace(/[-\s/]+/g, '_')
-    .replace(/[^a-z0-9_]/g, '')
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
-
-function getPlacementCandidates(row) {
-  const fields = [
-    row.master_name,
-    row.master_subname,
-    row.display_name,
-    row.tagline,
-    row.route,
-    row.name,
-    row.description,
-  ];
-
-  return fields.reduce((acc, value) => {
-    const normalized = normalizePlacementKey(value);
-    if (!normalized) return acc;
-    acc.add(normalized);
-    acc.add(normalized.replace(/_/g, ''));
-    if (!normalized.startsWith('feature_')) {
-      acc.add(`feature_${normalized}`);
-    }
-    return acc;
-  }, new Set());
-}
-
+// Placement comes from the master features row: Display_option decides
+// whether the feature is locked to Home/Sidebar or configurable ('both').
+// Missing/unrecognized Display_option means no placement info -> no toggle.
 function getDisplayPlacementPolicy(row) {
-  const candidates = getPlacementCandidates(row);
-  const hasKey = (keys) => Array.from(keys).some((key) => candidates.has(key) || candidates.has(key.replace(/_/g, '')));
+  const option = String(row.display_option || '').trim().toLowerCase();
 
-  if (hasKey(HOME_ONLY_PLACEMENT_KEYS)) {
+  if (option === 'home') {
     return {
       type: 'home-only',
       locked: true,
@@ -102,7 +42,7 @@ function getDisplayPlacementPolicy(row) {
     };
   }
 
-  if (hasKey(SIDEBAR_ONLY_PLACEMENT_KEYS)) {
+  if (option === 'sidebar') {
     return {
       type: 'sidebar-only',
       locked: true,
@@ -112,12 +52,22 @@ function getDisplayPlacementPolicy(row) {
     };
   }
 
+  if (option === 'both') {
+    return {
+      type: 'configurable',
+      locked: false,
+      forcedDisplayInApp: null,
+      displaysInSidebar: normalizeDisplayInApp(row.display_in_app) === 'sidebar',
+      message: '',
+    };
+  }
+
   return {
-    type: 'configurable',
-    locked: false,
+    type: 'none',
+    locked: true,
     forcedDisplayInApp: null,
-    displaysInSidebar: normalizeDisplayInApp(row.display_in_app) === 'sidebar',
-    message: '',
+    displaysInSidebar: false,
+    message: 'No display placement configured for this feature.',
   };
 }
 
@@ -164,11 +114,10 @@ export default function FeatureControlPage() {
 
   const [trustOptions, setTrustOptions] = useState(trust ? [trust] : []);
   const [selectedTrustId, setSelectedTrustId] = useState(trust?.id || '');
-  const [selectedTier, setSelectedTier] = useState(
+  const [selectedTier] = useState(
     location.state?.tier === 'vip' ? 'vip' : 'general',
   );
   const [masterFeatures, setMasterFeatures] = useState([]);
-  const [subFeatureCountByFeatureId, setSubFeatureCountByFeatureId] = useState({});
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -177,13 +126,25 @@ export default function FeatureControlPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [quickOrderSort, setQuickOrderSort] = useState('asc');
-  const [activeCategoryView, setActiveCategoryView] = useState(null);
+  const [activeCategoryView, setActiveCategoryView] = useState('all');
+  const categoryInlineRef = useRef(null);
+
+  // Bring the inline feature list into view when it opens.
+  useEffect(() => {
+    if (!activeCategoryView) return;
+    const frame = window.requestAnimationFrame(() => {
+      categoryInlineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeCategoryView]);
+
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const [togglingMap, setTogglingMap] = useState({});
   const [displayTogglingMap, setDisplayTogglingMap] = useState({});
   const [activeEditRow, setActiveEditRow] = useState(null);
+  const [activeViewRow, setActiveViewRow] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [saveError, setSaveError] = useState('');
 
@@ -224,19 +185,13 @@ export default function FeatureControlPage() {
   }, [superuserId, trust]);
 
   const loadMasterFeatures = useCallback(async () => {
-    const { data, error: masterError } = await fetchMasterFeatures();
+    const { data, error: masterError } = await fetchMasterFeatures(selectedTrustId);
     if (masterError) {
       setError(masterError.message || 'Unable to load features master list.');
       return [];
     }
     const masterList = data || [];
     setMasterFeatures(masterList);
-
-    const { data: counts, error: countError } = await fetchSubFeatureCountsByFeatureIds(
-      masterList.map((item) => item.id).filter(Boolean),
-    );
-    if (!countError) setSubFeatureCountByFeatureId(counts || {});
-
     return masterList;
   }, []);
 
@@ -255,7 +210,11 @@ export default function FeatureControlPage() {
       return;
     }
 
-    const merged = mergeFeaturesWithFlags(masterList, flags || [], selectedTrustId, selectedTier);
+    // Only show features that are NOT flagged Display_upanel = true
+    // (i.e. false, null, or missing).
+    const visibleMasterList = masterList.filter((f) => f.Display_upanel !== true);
+
+    const merged = mergeFeaturesWithFlags(visibleMasterList, flags || [], selectedTrustId, selectedTier);
     setRows(merged);
     setLoading(false);
   }, [selectedTier, selectedTrustId]);
@@ -271,9 +230,8 @@ export default function FeatureControlPage() {
   }, []);
 
   useEffect(() => {
-    // On refresh/load: keep page state clean by closing category modal.
-    setActiveCategoryView(null);
-  }, []);
+    if (!openedFromFeatures20) setActiveCategoryView(null);
+  }, [openedFromFeatures20]);
 
   useEffect(() => {
     try {
@@ -282,7 +240,8 @@ export default function FeatureControlPage() {
       const parsed = JSON.parse(raw);
       if (typeof parsed.searchTerm === 'string') setSearchTerm(parsed.searchTerm);
       if (typeof parsed.statusFilter === 'string') setStatusFilter(parsed.statusFilter);
-      if (typeof parsed.categoryFilter === 'string') setCategoryFilter(parsed.categoryFilter);
+      // categoryFilter is not restored: there is no Category picker any more,
+      // so an old saved value would silently hide features.
       if (typeof parsed.quickOrderSort === 'string') setQuickOrderSort(parsed.quickOrderSort);
     } catch {
       // ignore invalid persisted value
@@ -344,18 +303,19 @@ export default function FeatureControlPage() {
 
   const rowsWithCounts = useMemo(
     () =>
-      rows.map((row) => {
-        const category = classifyFeatureByApp(row);
-        const placementPolicy = getDisplayPlacementPolicy(row);
-        return {
-          ...row,
-          sub_feature_count: Number(subFeatureCountByFeatureId[String(row.feature_id)] || 0),
-          app_category: category.key,
-          app_category_label: category.label,
-          display_placement_policy: placementPolicy,
-        };
-      }),
-    [rows, subFeatureCountByFeatureId],
+      rows
+        .map((row) => {
+          const category = classifyFeatureByApp(row);
+          const placementPolicy = getDisplayPlacementPolicy(row);
+          return {
+            ...row,
+            app_category: category.key,
+            app_category_label: category.label,
+            display_placement_policy: placementPolicy,
+          };
+        })
+        .filter((row) => row.display_placement_policy.type !== 'none'),
+    [rows],
   );
 
   const filteredRows = useMemo(() => {
@@ -435,6 +395,11 @@ export default function FeatureControlPage() {
     return categorySummary.find((item) => item.key === activeCategoryView) || null;
   }, [activeCategoryView, categorySummary, rowsWithCounts]);
 
+  // Stats for the "All Categories" card
+  const allTotalCount = rowsWithCounts.length;
+  const allEnabledCount = rowsWithCounts.filter((row) => row.is_enabled).length;
+  const allEnabledPercent = allTotalCount ? Math.round((allEnabledCount / allTotalCount) * 100) : 0;
+
   const openCategoryView = (categoryKey) => {
     const next = categoryKey || 'all';
 
@@ -455,70 +420,70 @@ export default function FeatureControlPage() {
     setMobileFiltersOpen(false);
   };
 
-  const handleCategoryFilterChange = (nextValue) => {
-    setCategoryFilter(nextValue);
-    if (activeCategoryView) {
-      setActiveCategoryView(nextValue === 'all' ? 'all' : nextValue);
-    }
+  const hasActiveFilters = !!searchTerm.trim() || statusFilter !== 'all' || quickOrderSort !== 'asc';
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setQuickOrderSort('asc');
   };
 
   const renderControls = (extraClass = '') => (
+    // Trust, Tier and Category pickers were removed from the UI: the page
+    // always uses the trust it was opened for, the tier passed in from
+    // Features20 (default general), and all categories.
     <div className={`fc-controls${extraClass ? ` ${extraClass}` : ''}`}>
-      <label>
-        <span>Trust</span>
-        <select value={selectedTrustId} onChange={(event) => setSelectedTrustId(event.target.value)}>
-          {trustOptions.map((item) => (
-            <option key={item.id} value={item.id}>{item.name}</option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        <span>Tier</span>
-        <select value={selectedTier} onChange={(event) => setSelectedTier(event.target.value)}>
-          <option value="general">general</option>
-          <option value="vip">vip</option>
-        </select>
-      </label>
-
       <label className="fc-search">
         <span>Search</span>
-        <input
-          type="text"
-          placeholder="Search feature, display name, route..."
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-        />
+        <div className="fc-search-field">
+          <svg className="fc-search-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M11 11l2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search feature, display name, route..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+          {searchTerm ? (
+            <button
+              type="button"
+              className="fc-search-clear"
+              onClick={(event) => {
+                event.preventDefault();
+                setSearchTerm('');
+              }}
+              aria-label="Clear search"
+              title="Clear search"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
       </label>
 
       <label>
         <span>Status</span>
         <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-          <option value="all">all</option>
-          <option value="enabled">enabled</option>
-          <option value="disabled">disabled</option>
+          <option value="all">All</option>
+          <option value="enabled">Enabled</option>
+          <option value="disabled">Disabled</option>
         </select>
       </label>
 
       <label>
-        <span>Category</span>
-        <select value={categoryFilter} onChange={(event) => handleCategoryFilterChange(event.target.value)}>
-          <option value="all">all app categories</option>
-          {categorySummary.map((item) => (
-            <option key={item.key} value={item.key}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        <span>Sort Alphabetically</span>
+        <span>Sort</span>
         <select value={quickOrderSort} onChange={(event) => setQuickOrderSort(event.target.value)}>
           <option value="asc">A to Z</option>
           <option value="desc">Z to A</option>
         </select>
       </label>
+
+      {hasActiveFilters ? (
+        <button type="button" className="fc-reset-filters" onClick={resetFilters}>
+          Reset filters
+        </button>
+      ) : null}
     </div>
   );
 
@@ -634,17 +599,8 @@ export default function FeatureControlPage() {
     setActiveEditRow(row);
   };
 
-  const handleOpenSubScreens = (row) => {
-    navigate('/sub-feature-control', {
-      state: {
-        userName,
-        trust: selectedTrust || trust,
-        sidebarNavKey: currentSidebarNavKey,
-        fromFeatures20: openedFromFeatures20,
-        featureId: row.feature_id,
-        tier: selectedTier === 'vip' ? 'vip' : 'gen',
-      },
-    });
+  const handleOpenView = (row) => {
+    setActiveViewRow(row);
   };
 
   const handleSaveEdit = async (payload) => {
@@ -698,16 +654,10 @@ export default function FeatureControlPage() {
         />
 
         <section className="fc-panel">
-          <div className="fc-readonly-note">
-            {openedFromFeatures20 ? (
-              <>View only</>
-            ) : (
-              <>Source table: <strong>features</strong> (view only). Editable table: <strong>feature_flags</strong>.</>
-            )}
-          </div>
-
           {!openedFromFeatures20 ? renderControls() : null}
 
+          {/* Card hides while its feature list is open; the list takes its place */}
+          {!activeCategoryView ? (
           <div className="fc-category-summary" aria-label="Feature category summary">
             <button
               type="button"
@@ -716,45 +666,52 @@ export default function FeatureControlPage() {
               aria-pressed={activeCategoryView === 'all'}
               title={activeCategoryView === 'all' ? 'Click to close category view' : 'Click to view all features'}
             >
-              <div className="fc-category-card-left">
+              <span className="fc-cat-top">
+                <span className="fc-cat-icon" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="3" width="7.5" height="7.5" rx="2" stroke="currentColor" strokeWidth="1.9" />
+                    <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" stroke="currentColor" strokeWidth="1.9" />
+                    <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" stroke="currentColor" strokeWidth="1.9" />
+                    <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" stroke="currentColor" strokeWidth="1.9" />
+                  </svg>
+                </span>
+                <span className="fc-cat-badge">{allTotalCount} features</span>
+              </span>
+
+              <span className="fc-cat-body">
                 <span className="fc-category-card-title">All Categories</span>
-                <span className="fc-category-card-sub">
-                  Showing all features
+                <span className="fc-category-card-sub">View and manage every feature in one place</span>
+              </span>
+
+              <span className="fc-cat-stats">
+                <span className="fc-cat-stat">
+                  <strong>{allEnabledCount}</strong>
+                  <small>Enabled</small>
                 </span>
-                <span className="fc-category-card-hint">
-                  {activeCategoryView === 'all' ? 'Click again to close' : 'Click to open details'}
+                <span className="fc-cat-stat">
+                  <strong>{allTotalCount - allEnabledCount}</strong>
+                  <small>Disabled</small>
                 </span>
-              </div>
-              <div className="fc-category-card-right">
-                <strong>{rowsWithCounts.length}</strong>
-                <span className="fc-category-card-arrow" aria-hidden="true">→</span>
-              </div>
-            </button>
-            {categorySummary.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={`fc-category-card category-${item.key} ${activeCategoryView === item.key ? 'active' : ''}`}
-                onClick={() => openCategoryView(item.key)}
-                aria-pressed={activeCategoryView === item.key}
-                title={activeCategoryView === item.key ? `Click to close ${item.label}` : `Click to view ${item.label}`}
-              >
-                <div className="fc-category-card-left">
-                  <span className="fc-category-card-title">{item.label}</span>
-                  <span className="fc-category-card-sub">
-                    Enabled {item.enabled} of {item.total}
-                  </span>
-                  <span className="fc-category-card-hint">
-                    {activeCategoryView === item.key ? 'Click again to close' : 'Click to open details'}
-                  </span>
-                </div>
-                <div className="fc-category-card-right">
-                  <strong>{item.enabled}/{item.total}</strong>
+                <span className="fc-cat-stat">
+                  <strong>{categorySummary.length}</strong>
+                  <small>Categories</small>
+                </span>
+              </span>
+
+              <span className="fc-cat-progress" aria-hidden="true">
+                <span style={{ width: `${allEnabledPercent}%` }} />
+              </span>
+
+              <span className="fc-cat-foot">
+                <span>{allEnabledPercent}% enabled</span>
+                <span className="fc-cat-open">
+                  Open
                   <span className="fc-category-card-arrow" aria-hidden="true">→</span>
-                </div>
-              </button>
-            ))}
+                </span>
+              </span>
+            </button>
           </div>
+          ) : null}
 
           {error ? (
             <div className="fc-error">
@@ -765,23 +722,33 @@ export default function FeatureControlPage() {
             </div>
           ) : null}
 
-        </section>
-      </main>
-
+      {/* Opens inline in the card's place (full width), not as an overlay */}
       {activeCategoryView ? (
-        <div className="fc-category-view-overlay" role="dialog" aria-modal="true" aria-label="Category features">
+        <section
+          id="fc-category-inline"
+          ref={categoryInlineRef}
+          className="fc-category-inline"
+          aria-label="Category features"
+        >
           <div className="fc-category-view-panel">
             <div className="fc-category-view-head">
-              <div>
+              <div className="fc-view-titles">
                 <h3>{activeCategoryMeta?.label || 'Category Features'}</h3>
                 <p>
-                  Showing {filteredRows.length} feature{filteredRows.length === 1 ? '' : 's'}
-                  {activeCategoryMeta?.total ? ` | Enabled ${activeCategoryMeta.enabled}/${activeCategoryMeta.total}` : ''}
+                  Showing {filteredRows.length} of {rowsWithCounts.length} feature{rowsWithCounts.length === 1 ? '' : 's'}
                 </p>
               </div>
-              <button type="button" className="fc-category-view-close" onClick={closeCategoryView} aria-label="Close category view">
-                ×
-              </button>
+              <div className="fc-view-chips" aria-label="Feature summary">
+                <span className="fc-chip">
+                  <strong>{allTotalCount}</strong> Total
+                </span>
+                <span className="fc-chip on">
+                  <strong>{allEnabledCount}</strong> Enabled
+                </span>
+                <span className="fc-chip off">
+                  <strong>{allTotalCount - allEnabledCount}</strong> Disabled
+                </span>
+              </div>
             </div>
             {openedFromFeatures20 ? (
               <div className="fc-category-controls-wrap">
@@ -810,11 +777,20 @@ export default function FeatureControlPage() {
               onToggle={handleToggle}
               onDisplayInAppToggle={handleDisplayInAppToggle}
               onEdit={handleOpenEdit}
-              onOpenSubScreens={handleOpenSubScreens}
+              onView={handleOpenView}
             />
           </div>
-        </div>
+        </section>
       ) : null}
+
+        </section>
+      </main>
+
+      <FeatureViewModal
+        open={!!activeViewRow}
+        row={activeViewRow}
+        onClose={() => setActiveViewRow(null)}
+      />
 
       <FeatureEditModal
         key={activeEditRow ? `${activeEditRow.feature_id}-${activeEditRow.tier}` : 'feature-edit'}

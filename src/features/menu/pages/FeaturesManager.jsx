@@ -371,14 +371,15 @@ export default function FeaturesManager({ trustId, trustName, onFeaturesChange }
 
   // Load master feature list for "Add" dropdown
   useEffect(() => {
-    fetchAllFeatures().then(({ data }) => setAllFeatures(data || []));
-  }, []);
+    if (!trustId) return;
+    fetchAllFeatures(trustId).then(({ data }) => setAllFeatures(data || []));
+  }, [trustId]);
 
   // ── Toggle ─────────────────────────────────────────────────────────────────
   const handleToggle = async (flag) => {
     setToggling(p => ({ ...p, [flag.id]: true }));
     const newVal = !flag.is_enabled;
-    const { data, error: err } = await toggleFeatureFlag(flag.id, newVal);
+    const { data, error: err } = await toggleFeatureFlag(trustId, flag.id, newVal);
     if (!err && data) {
       setFlags(prev => prev.map(f => f.id === flag.id ? { ...f, is_enabled: newVal } : f));
       if (onFeaturesChange) onFeaturesChange();
@@ -441,7 +442,7 @@ export default function FeaturesManager({ trustId, trustName, onFeaturesChange }
       ...editForm,
       quick_order: editForm.quick_order !== '' ? Number(editForm.quick_order) : null,
     };
-    const { data, error: err } = await updateFeatureFlag(editFlag.id, updates);
+    const { data, error: err } = await updateFeatureFlag(trustId, editFlag.id, updates);
     if (err) {
       setSaveMsg('❌ ' + err.message);
     } else {

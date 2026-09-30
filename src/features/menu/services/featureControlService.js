@@ -1,26 +1,8 @@
 import { supabase } from '../../../core/lib/supabase';
 import { cachedQuery, invalidateCache } from '../../../core/services/requestCache';
 
-const MASTER_FEATURE_COLUMNS = 'id, name, subname, remarks, created_at, updated_at';
+const ADMIN_PANEL_RPC = 'manage_adminPanel_by_trustdetails';
 const FEATURE_LOGO_BUCKET = (import.meta.env.VITE_FEATURE_LOGO_BUCKET || 'feature_logo').trim();
-const FLAG_COLUMNS = `
-  id,
-  features_id,
-  trust_id,
-  is_enabled,
-  tier,
-  name,
-  description,
-  trust_name,
-  display_name,
-  tagline,
-  icon_url,
-  route,
-  quick_order,
-  display_in_app,
-  created_at,
-  updated_at
-`;
 
 const DUPLICATE_ERROR_CODES = new Set(['23505']);
 
@@ -42,11 +24,21 @@ function sanitizePathSegment(value, fallback = 'item') {
     .replace(/^-|-$/g, '') || fallback;
 }
 
-function isDuplicateError(error) {
-  if (!error) return false;
-  if (DUPLICATE_ERROR_CODES.has(String(error.code || ''))) return true;
-  const message = String(error.message || '').toLowerCase();
-  return message.includes('duplicate key') || message.includes('unique constraint');
+async function rpcCall(trustId, action, payload = {}) {
+  const { data, error } = await supabase.rpc(ADMIN_PANEL_RPC, {
+    p_trust_id: trustId,
+    p_action: action,
+    p_payload: payload,
+  });
+  if (error) {
+    console.error(`[RPC ERROR] action=${action}`, { message: error.message, details: error.details, hint: error.hint, code: error.code, payload });
+    return { data: null, error };
+  }
+  if (!data?.success) {
+    console.error(`[RPC FAIL] action=${action}`, { rpcError: data?.error, data, payload });
+    return { data: null, error: { message: data?.error || 'RPC_ERROR', code: data?.error } };
+  }
+  return { data: data.data ?? null, error: null };
 }
 
 export async function uploadFeatureLogo(file, { trustId, ownerId, type = 'feature' } = {}) {
@@ -81,69 +73,22 @@ export async function uploadFeatureLogo(file, { trustId, ownerId, type = 'featur
   };
 }
 
-function buildDefaultFeatureFlagPayload({ feature, trustId, tier, isEnabled = false, trustName = '', overrides = {} }) {
-  return {
-    features_id: feature.id,
-    trust_id: trustId,
-    tier,
-    is_enabled: !!isEnabled,
-    display_name: normalizeOptionalText(overrides.display_name),
-    name: normalizeText(overrides.name, feature.name || ''),
-    tagline: normalizeText(overrides.tagline, feature.subname || ''),
-    description: normalizeText(overrides.description, ''),
-    trust_name: normalizeText(overrides.trust_name, trustName),
-    icon_url: normalizeText(overrides.icon_url, ''),
-    route: normalizeText(overrides.route, ''),
-    quick_order:
-      overrides.quick_order === null || overrides.quick_order === undefined || overrides.quick_order === ''
-        ? null
-        : Number(overrides.quick_order),
-    display_in_app: normalizeText(overrides.display_in_app, 'home'),
-  };
-}
-
-export async function fetchMasterFeatures() {
+export async function fetchMasterFeatures(trustId) {
   return cachedQuery('feature-control:master', async () => {
-    const { data, error } = await supabase
-      .from('features')
-      .select(MASTER_FEATURE_COLUMNS)
-      .order('name', { ascending: true });
-
-    return { data: data || [], error };
+    const { data, error } = await rpcCall(trustId, 'read');
+    if (error) return { data: [], error };
+    return { data: data?.features || [], error: null };
   }, 30000);
 }
 
-export async function fetchSubFeatureCountsByFeatureIds(featureIds = []) {
-  if (!featureIds.length) return { data: {}, error: null };
-
-  const { data, error } = await supabase
-    .from('sub_features')
-    .select('feature_id')
-    .in('feature_id', featureIds);
-
-  if (error) return { data: {}, error };
-
-  const counts = (data || []).reduce((acc, row) => {
-    const key = String(row.feature_id || '');
-    if (!key) return acc;
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
-
-  return { data: counts, error: null };
-}
 
 export async function fetchFeatureFlagsByTrustAndTier(trustId, tier) {
   return cachedQuery(`feature-control:flags:${trustId}:${tier}`, async () => {
-    const { data, error } = await supabase
-      .from('feature_flags')
-      .select(FLAG_COLUMNS)
-      .eq('trust_id', trustId)
-      .eq('tier', tier)
-      .order('quick_order', { ascending: true, nullsFirst: false })
-      .order('display_name', { ascending: true });
-
-    return { data: data || [], error };
+    const { data, error } = await rpcCall(trustId, 'feature_flag_read');
+    if (error) return { data: [], error };
+    const allFlags = data?.feature_flags || [];
+    const filtered = tier ? allFlags.filter((ff) => ff.tier === tier) : allFlags;
+    return { data: filtered, error: null };
   }, 12000);
 }
 
@@ -167,80 +112,66 @@ export function mergeFeaturesWithFlags(masterFeatures, featureFlags, trustId, ti
       icon_url: normalizeText(flag?.icon_url, ''),
       route: normalizeText(flag?.route, ''),
       quick_order: flag?.quick_order ?? null,
-      display_in_app: normalizeText(flag?.display_in_app, 'home'),
+      display_in_app: normalizeText(flag?.display_in_app, feature.Default_display || 'home'),
       name: normalizeText(flag?.name, feature.name || ''),
       description: normalizeText(flag?.description, ''),
       trust_name: normalizeText(flag?.trust_name, ''),
       created_at: flag?.created_at || feature.created_at || null,
       updated_at: flag?.updated_at || feature.updated_at || null,
+      display_upanel: feature.Display_upanel ?? true,
+      display_option: feature.Display_option || null,
+      default_display: feature.Default_display || null,
     };
   });
 }
 
-async function fetchFeatureFlagByKey({ featureId, trustId, tier }) {
-  return supabase
-    .from('feature_flags')
-    .select(FLAG_COLUMNS)
-    .eq('features_id', featureId)
-    .eq('trust_id', trustId)
-    .eq('tier', tier)
-    .maybeSingle();
-}
-
 export async function createFeatureFlagIfMissing({ feature, trustId, tier, isEnabled = false, trustName = '', overrides = {} }) {
-  const { data: existing, error: existingError } = await fetchFeatureFlagByKey({
-    featureId: feature.id,
-    trustId,
-    tier,
-  });
-
-  if (existingError) {
-    return { data: null, error: existingError };
-  }
-
-  if (existing) {
-    return { data: existing, error: null };
-  }
-
-  const payload = buildDefaultFeatureFlagPayload({ feature, trustId, tier, isEnabled, trustName, overrides });
-
-  const { data: inserted, error: insertError } = await supabase
-    .from('feature_flags')
-    .insert([payload])
-    .select(FLAG_COLUMNS)
-    .single();
-
-  if (!insertError) {
-    invalidateCache('feature-control:flags:');
-    invalidateCache('user-management:enabled-features:');
-    return { data: inserted, error: null };
-  }
-
-  if (!isDuplicateError(insertError)) {
-    return { data: null, error: insertError };
-  }
-
-  const { data: duplicateSafe, error: duplicateSafeError } = await fetchFeatureFlagByKey({
-    featureId: feature.id,
-    trustId,
-    tier,
-  });
-
-  return { data: duplicateSafe, error: duplicateSafeError };
-}
-
-export async function updateFeatureFlagById(flagId, updates) {
-  const normalizedUpdates = {
-    ...updates,
-    updated_at: new Date().toISOString(),
+  const payload = {
+    features_id: feature.id,
+    tier: tier || 'general',
+    is_enabled: !!isEnabled,
+    display_name: normalizeOptionalText(overrides.display_name) || null,
+    name: normalizeText(overrides.name, feature.name || '') || null,
+    tagline: normalizeText(overrides.tagline, feature.subname || '') || null,
+    description: normalizeText(overrides.description, '') || null,
+    trust_name: normalizeText(overrides.trust_name, trustName) || null,
+    icon_url: normalizeText(overrides.icon_url, '') || null,
+    route: normalizeText(overrides.route, '') || null,
+    quick_order:
+      overrides.quick_order === null || overrides.quick_order === undefined || overrides.quick_order === ''
+        ? null
+        : Number(overrides.quick_order),
+    display_in_app: normalizeText(overrides.display_in_app, 'home') || null,
   };
 
-  const { data, error } = await supabase
-    .from('feature_flags')
-    .update(normalizedUpdates)
-    .eq('id', flagId)
-    .select(FLAG_COLUMNS)
-    .single();
+  const { data: rpcData, error: rpcError } = await supabase.rpc(ADMIN_PANEL_RPC, {
+    p_trust_id: trustId,
+    p_action: 'feature_flag_create',
+    p_payload: payload,
+  });
+
+  if (rpcError) return { data: null, error: rpcError };
+
+  if (!rpcData?.success) {
+    if (rpcData?.error === 'FEATURE_FLAG_ALREADY_EXISTS') {
+      const { data: readData, error: readError } = await rpcCall(trustId, 'feature_flag_read');
+      if (readError) return { data: null, error: readError };
+      const existing = (readData?.feature_flags || []).find((ff) => ff.features_id === feature.id) || null;
+      return { data: existing, error: null };
+    }
+    return { data: null, error: { message: rpcData?.error || 'RPC_ERROR', code: rpcData?.error } };
+  }
+
+  invalidateCache('feature-control:flags:');
+  invalidateCache('user-management:enabled-features:');
+  return { data: rpcData.data, error: null };
+}
+
+export async function updateFeatureFlagById(trustId, flagId, updates) {
+  const { data, error } = await rpcCall(trustId, 'feature_flag_update', {
+    id: flagId,
+    ...updates,
+  });
 
   if (!error) {
     invalidateCache('feature-control:flags:');
@@ -271,10 +202,21 @@ export async function toggleFeatureEnabled({ mergedFeature, trustId, tier, isEna
     });
 
     if (ensureError) return { data: null, error: ensureError };
-    flagId = ensuredFlag.id;
+    return { data: ensuredFlag, error: null };
   }
 
-  return updateFeatureFlagById(flagId, { is_enabled: !!isEnabled });
+  const { data: rpcData, error } = await supabase.rpc(ADMIN_PANEL_RPC, {
+    p_trust_id: trustId,
+    p_action: 'feature_flag_toggle',
+    p_payload: { id: flagId, is_enabled: !!isEnabled },
+  });
+
+  if (error) return { data: null, error };
+  if (!rpcData?.success) return { data: null, error: { message: rpcData?.error || 'RPC_ERROR' } };
+
+  invalidateCache('feature-control:flags:');
+  invalidateCache('user-management:enabled-features:');
+  return { data: rpcData.data, error: null };
 }
 
 export async function saveFeatureCustomization({ mergedFeature, trustId, tier, trustName = '', updates }) {
@@ -295,10 +237,10 @@ export async function saveFeatureCustomization({ mergedFeature, trustId, tier, t
     });
 
     if (ensureError) return { data: null, error: ensureError };
-    flagId = ensuredFlag.id;
+    return { data: ensuredFlag, error: null };
   }
 
-  return updateFeatureFlagById(flagId, updates);
+  return updateFeatureFlagById(trustId, flagId, updates);
 }
 
 export function mergeSingleFeatureWithFlag(mergedFeature, flag) {
@@ -315,7 +257,7 @@ export function mergeSingleFeatureWithFlag(mergedFeature, flag) {
     icon_url: normalizeText(flag.icon_url, ''),
     route: normalizeText(flag.route, ''),
     quick_order: flag.quick_order ?? null,
-    display_in_app: normalizeText(flag.display_in_app, 'home'),
+    display_in_app: normalizeText(flag.display_in_app, mergedFeature.default_display || 'home'),
     name: normalizeText(flag.name, mergedFeature.master_name || ''),
     description: normalizeText(flag.description, ''),
     trust_name: normalizeText(flag.trust_name, ''),

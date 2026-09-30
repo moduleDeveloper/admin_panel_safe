@@ -1,67 +1,40 @@
 import { supabase } from '../../../core/lib/supabase';
 import { cachedQuery, invalidateCache } from '../../../core/services/requestCache';
 
-/**
- * Fetch all feature_flags for a given trust_id, joined with features table.
- * Sorted by quick_order asc, then display_name asc.
- */
+const ADMIN_PANEL_RPC = 'manage_adminPanel_by_trustdetails';
+
+async function callRpc(trustId, action, payload = {}) {
+  const { data, error } = await supabase.rpc(ADMIN_PANEL_RPC, {
+    p_trust_id: trustId,
+    p_action: action,
+    p_payload: payload,
+  });
+  if (error) return { data: null, error };
+  if (!data?.success) return { data: null, error: { message: data?.error || 'RPC_ERROR' } };
+  return { data: data.data ?? null, error: null };
+}
+
 export async function fetchFeatureFlags(trustId) {
   return cachedQuery(`features:flags:${trustId}`, async () => {
-    const { data, error } = await supabase
-      .from('feature_flags')
-      .select(`
-        id,
-        features_id,
-        trust_id,
-        is_enabled,
-        tier,
-        name,
-        description,
-        display_name,
-        tagline,
-        icon_url,
-        route,
-        quick_order,
-        features (
-          id,
-          name,
-          subname,
-          remarks
-        )
-      `)
-      .eq('trust_id', trustId)
-      .order('quick_order', { ascending: true, nullsFirst: false })
-      .order('display_name', { ascending: true });
-
-    return { data, error };
+    const { data, error } = await callRpc(trustId, 'feature_flag_read');
+    if (error) return { data: null, error };
+    return { data: data?.feature_flags || [], error: null };
   }, 15000);
 }
 
-/**
- * Fetch ALL features (master list) — for admin "add feature" dropdown.
- */
-export async function fetchAllFeatures() {
+export async function fetchAllFeatures(trustId) {
   return cachedQuery('features:all', async () => {
-    const { data, error } = await supabase
-      .from('features')
-      .select('id, name, subname, remarks')
-      .order('name', { ascending: true });
-
-    return { data, error };
+    const { data, error } = await callRpc(trustId, 'read');
+    if (error) return { data: null, error };
+    return { data: data?.features || [], error: null };
   }, 30000);
 }
 
-/**
- * Toggle is_enabled for a feature_flag row.
- */
-export async function toggleFeatureFlag(flagId, isEnabled) {
-  const { data, error } = await supabase
-    .from('feature_flags')
-    .update({ is_enabled: isEnabled, updated_at: new Date().toISOString() })
-    .eq('id', flagId)
-    .select()
-    .single();
-
+export async function toggleFeatureFlag(trustId, flagId, isEnabled) {
+  const { data, error } = await callRpc(trustId, 'feature_flag_toggle', {
+    id: flagId,
+    is_enabled: isEnabled,
+  });
   if (!error) {
     invalidateCache('features:');
     invalidateCache('user-management:enabled-features:');
@@ -69,17 +42,11 @@ export async function toggleFeatureFlag(flagId, isEnabled) {
   return { data, error };
 }
 
-/**
- * Update editable fields of a feature_flag.
- */
-export async function updateFeatureFlag(flagId, updates) {
-  const { data, error } = await supabase
-    .from('feature_flags')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', flagId)
-    .select()
-    .single();
-
+export async function updateFeatureFlag(trustId, flagId, updates) {
+  const { data, error } = await callRpc(trustId, 'feature_flag_update', {
+    id: flagId,
+    ...updates,
+  });
   if (!error) {
     invalidateCache('features:');
     invalidateCache('user-management:enabled-features:');
@@ -87,25 +54,17 @@ export async function updateFeatureFlag(flagId, updates) {
   return { data, error };
 }
 
-/**
- * Add a new feature_flag for a trust (link an existing feature to a trust).
- */
-export async function addFeatureFlag({ featuresId, trustId, displayName, tagline, route, quickOrder, tier = 'general' }) {
-  const { data, error } = await supabase
-    .from('feature_flags')
-    .insert([{
-      features_id: featuresId,
-      trust_id: trustId,
-      display_name: displayName,
-      tagline,
-      route,
-      quick_order: quickOrder,
-      tier,
-      is_enabled: true,
-    }])
-    .select()
-    .single();
-
+export async function addFeatureFlag({ featuresId, trustId, displayName, tagline, route, quickOrder, tier = 'general', iconUrl, isEnabled = true }) {
+  const { data, error } = await callRpc(trustId, 'feature_flag_create', {
+    features_id: featuresId,
+    display_name: displayName || null,
+    tagline: tagline || null,
+    route: route || null,
+    quick_order: quickOrder != null && quickOrder !== '' ? Number(quickOrder) : null,
+    tier,
+    is_enabled: isEnabled,
+    icon_url: iconUrl || null,
+  });
   if (!error) {
     invalidateCache('features:');
     invalidateCache('user-management:enabled-features:');
@@ -113,35 +72,10 @@ export async function addFeatureFlag({ featuresId, trustId, displayName, tagline
   return { data, error };
 }
 
-/**
- * Delete a feature_flag row (remove feature from trust).
- */
-export async function deleteFeatureFlag(flagId) {
-  const { error } = await supabase
-    .from('feature_flags')
-    .delete()
-    .eq('id', flagId);
-
-  if (!error) {
-    invalidateCache('features:');
-    invalidateCache('user-management:enabled-features:');
-  }
-  return { error };
+export async function deleteFeatureFlag() {
+  return { error: { message: 'Feature deletion is not supported via the admin panel RPC.' } };
 }
 
-/**
- * Create a brand-new master feature in the features table.
- */
-export async function createFeature({ name, subname, remarks }) {
-  const { data, error } = await supabase
-    .from('features')
-    .insert([{ name, subname: subname || '', remarks: remarks || '' }])
-    .select()
-    .single();
-
-  if (!error) {
-    invalidateCache('features:');
-    invalidateCache('user-management:enabled-features:');
-  }
-  return { data, error };
+export async function createFeature() {
+  return { data: null, error: { message: 'Master feature creation is not supported via the admin panel RPC.' } };
 }
