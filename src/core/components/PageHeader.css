@@ -93,8 +93,8 @@
 
 @media (max-width: 980px) {
   .ph-header {
-    padding-left: 66px;
-    padding-right: 16px;
+    padding-left: 16px;
+    padding-right: 66px;
     gap: 14px;
   }
 }
@@ -103,8 +103,12 @@
   .ph-header {
     flex-direction: column;
     align-items: flex-start;
-    padding: 16px 18px 16px 66px;
+    padding: 16px 66px 16px 18px;
     gap: 12px;
+  }
+
+  .ph-back {
+    display: none;
   }
 
   .ph-right {
@@ -116,7 +120,7 @@
 
 @media (max-width: 480px) {
   .ph-header {
-    padding: 12px 10px 12px 58px;
+    padding: 12px 58px 12px 10px;
   }
 
   .ph-back {

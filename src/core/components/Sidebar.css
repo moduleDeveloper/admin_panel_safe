@@ -28,35 +28,49 @@ body.sb-mobile-lock {
 
 .sb-mobile-trigger {
   position: fixed;
-  left: 14px;
+  right: 14px;
   top: 12px;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
+  box-sizing: border-box;
   border-radius: 12px;
-  border: 1px solid rgba(99, 102, 241, 0.24);
-  background: linear-gradient(135deg, #ffffff, #eef2ff);
-  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.2);
-  padding: 10px 9px;
+  border: 1.5px solid rgba(99, 102, 241, 0.18);
+  background: #FFFFFF;
+  box-shadow: 0 2px 10px rgba(79, 70, 229, 0.12);
+  padding: 0;
   z-index: 1250;
   cursor: pointer;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   flex-direction: column;
-  gap: 5px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  gap: 4px;
+  padding-left: 10px;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease, background 0.2s ease;
 }
 
+/* Three bars: 18 / 12 / 15px, left-aligned; equalize on hover */
 .sb-mobile-trigger span {
-  width: 100%;
+  display: block;
+  width: 18px;
   height: 2px;
   border-radius: 99px;
-  background: #4f46e5;
+  background: #4F46E5;
   transform-origin: center;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.25s ease, opacity 0.2s ease, width 0.25s ease;
+}
+
+.sb-mobile-trigger span:nth-child(2) { width: 12px; }
+.sb-mobile-trigger span:nth-child(3) { width: 15px; }
+
+.sb-mobile-trigger:hover span,
+.sb-mobile-trigger:focus-visible span {
+  width: 18px;
 }
 
 .sb-mobile-trigger.is-open span:nth-child(1) {
-  transform: translateY(7px) rotate(45deg);
+  width: 18px;
+  transform: translateY(6px) rotate(45deg);
 }
 
 .sb-mobile-trigger.is-open span:nth-child(2) {
@@ -64,12 +78,23 @@ body.sb-mobile-lock {
 }
 
 .sb-mobile-trigger.is-open span:nth-child(3) {
-  transform: translateY(-7px) rotate(-45deg);
+  width: 18px;
+  transform: translateY(-6px) rotate(-45deg);
 }
 
 .sb-mobile-trigger:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 26px rgba(79, 70, 229, 0.28);
+  background: #F5F7FF;
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.18);
+}
+
+.sb-mobile-trigger:active {
+  transform: scale(0.94);
+}
+
+.sb-mobile-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
 }
 
 .sb-backdrop {
@@ -106,13 +131,92 @@ body.sb-mobile-lock {
 }
 
 .sb-brand-logo {
+  position: relative;
+  flex-shrink: 0;
   width: 40px;
   height: 40px;
   border-radius: 11px;
   background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
   display: grid;
   place-items: center;
+  overflow: hidden;
   box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  animation: sbLogoGlow 3.2s ease-in-out infinite;
+  transition: transform 0.25s ease;
+}
+
+/* Light sweep across the logo box */
+.sb-brand-logo::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: -70%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-20deg);
+  pointer-events: none;
+  animation: sbLogoSweep 4s ease-in-out 1s infinite;
+}
+
+.sb-brand-icon {
+  position: relative;
+  z-index: 1;
+  animation: sbIconIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.sb-brand-bolt {
+  stroke-dasharray: 32;
+  stroke-dashoffset: 0;
+  animation: sbBoltCharge 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.7));
+}
+
+.sb-brand:hover .sb-brand-logo {
+  transform: rotate(-6deg) scale(1.06);
+}
+
+.sb-brand:hover .sb-brand-icon {
+  animation: sbIconSpin 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes sbLogoGlow {
+  0%, 100% { box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35); }
+  50%      { box-shadow: 0 4px 20px rgba(139, 92, 246, 0.6), 0 0 0 3px rgba(139, 92, 246, 0.12); }
+}
+
+@keyframes sbLogoSweep {
+  0%        { left: -70%; }
+  40%, 100% { left: 140%; }
+}
+
+@keyframes sbIconIn {
+  0%   { opacity: 0; transform: scale(0.4) rotate(-90deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes sbIconSpin {
+  0%   { transform: rotate(0) scale(1); }
+  50%  { transform: rotate(180deg) scale(0.9); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+/* Bolt redraws itself, then gives a quick flash */
+@keyframes sbBoltCharge {
+  0%        { stroke-dashoffset: 32; opacity: 0.6; }
+  30%       { stroke-dashoffset: 0; opacity: 1; }
+  36%       { opacity: 0.55; }
+  40%, 100% { stroke-dashoffset: 0; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-brand-logo,
+  .sb-brand-logo::after,
+  .sb-brand-icon,
+  .sb-brand-bolt,
+  .sb-brand:hover .sb-brand-icon {
+    animation: none;
+  }
 }
 
 .sb-brand-text {
@@ -126,7 +230,7 @@ body.sb-mobile-lock {
 .sb-brand-name {
   font-weight: 800;
   color: #1E1F3B;
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: -0.2px;
   white-space: nowrap;
   overflow: hidden;
@@ -361,9 +465,17 @@ body.sb-mobile-lock {
   }
 }
 
+@media (max-width: 768px) {
+  .sb-sidebar {
+    width: min(78vw, 280px);
+    max-width: 280px;
+    padding: 14px 12px;
+  }
+}
+
 @media (max-width: 480px) {
   .sb-sidebar {
-    width: min(90vw, 320px);
+    width: min(76vw, 264px);
     padding: 12px 10px;
   }
 

@@ -286,9 +286,9 @@ export default function Sidebar({ trustName = 'Trust', onDashboard, onLogout }) 
           }}
         >
           <div className="sb-brand-logo">
-            <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
-              <path d="M16 2L29 9V23L16 30L3 23V9L16 2Z" fill="url(#sbGrad)" />
-              <path d="M16 8L12 18H20L16 24" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg className="sb-brand-icon" width="28" height="28" viewBox="0 0 32 32" fill="none">
+              <path className="sb-brand-hex" d="M16 2L29 9V23L16 30L3 23V9L16 2Z" fill="url(#sbGrad)" stroke="rgba(255,255,255,0.45)" strokeWidth="1.2" strokeLinejoin="round" />
+              <path className="sb-brand-bolt" d="M16 8L12 18H20L16 24" stroke="white" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
               <defs>
                 <linearGradient id="sbGrad" x1="3" y1="2" x2="29" y2="30" gradientUnits="userSpaceOnUse">
                   <stop stopColor="#6366F1" /><stop offset="1" stopColor="#8B5CF6" />
