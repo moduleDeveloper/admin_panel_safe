@@ -1701,6 +1701,50 @@
   background: rgba(15, 23, 42, 0.86);
 }
 
+@media (max-width: 768px) {
+  .nb-bank .ph-header {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .nb-bank .ph-header .ph-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8B7CF6, #6C5CE7);
+    box-shadow: 0 6px 14px rgba(108, 92, 231, 0.4);
+    font-size: 0;
+    color: transparent;
+  }
+
+  .nb-bank .ph-header .ph-back::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(135deg);
+    margin-left: 4px;
+  }
+
+  .nb-bank .ph-titles {
+    align-items: center;
+    text-align: center;
+  }
+
+  .nb-bank .ph-right {
+    width: auto;
+    flex-shrink: 0;
+  }
+}
+
 @media (max-width: 980px) {
   .nb-root {
     grid-template-columns: 1fr;
@@ -1823,5 +1867,863 @@
     top: 12px;
     right: 12px;
     padding: 8px 14px;
+  }
+}
+
+/* ── Field validation (Bank Details form) ── */
+.nb-form-grid input.nb-input-invalid,
+.nb-form-grid textarea.nb-input-invalid {
+  border-color: #f87171;
+  background: #fffafa;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.14);
+}
+
+.nb-form-grid input.nb-input-invalid:focus,
+.nb-form-grid textarea.nb-input-invalid:focus {
+  outline: none;
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+.nb-field-error {
+  display: block;
+  margin-top: -2px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #dc2626;
+  animation: nbFieldErrorIn 0.2s ease both;
+}
+
+@keyframes nbFieldErrorIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Input with a fixed unit on the right (e.g. %) */
+.nb-input-suffix-wrap {
+  position: relative;
+  display: flex;
+}
+
+.nb-input-suffix-wrap input {
+  flex: 1;
+  min-width: 0;
+  padding-right: 34px;
+}
+
+.nb-input-suffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  font-weight: 700;
+  color: #64748b;
+  pointer-events: none;
+}
+
+/* =====================================================================
+   BANK DETAILS page only (scoped under .nb-bank)
+   ===================================================================== */
+
+/* ── "Add Bank Details" button: compact + animated ── */
+.nb-bank .nb-bank-add-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nb-bank .nb-bank-add-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg);
+  pointer-events: none;
+}
+
+.nb-bank-add-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: inline-grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.2);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nb-bank .nb-bank-add-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(79, 70, 229, 0.32);
+}
+
+.nb-bank .nb-bank-add-btn:hover::after {
+  animation: nbBankSweep 0.75s ease forwards;
+}
+
+.nb-bank .nb-bank-add-btn:hover .nb-bank-add-icon {
+  transform: rotate(90deg) scale(1.08);
+}
+
+.nb-bank .nb-bank-add-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* ── Detail header card ── */
+.nb-bank .nb-bank-hero {
+  align-items: center;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, #f5f7ff 0%, #eef2ff 100%);
+}
+
+.nb-bank .nb-bank-hero .nb-profile-hero-left {
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.nb-bank .nb-bank-hero .nb-profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  font-size: 22px;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.12);
+}
+
+.nb-bank-hero-info {
+  min-width: 0;
+}
+
+.nb-bank .nb-bank-hero h3 {
+  font-size: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nb-bank .nb-bank-hero p {
+  margin-top: 4px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nb-bank-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Edit / Delete buttons: small, outlined, animated ── */
+.nb-bank-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1.5px solid;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+
+/* colour fill that slides up on hover */
+.nb-bank-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: translateY(101%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nb-bank-btn-edit {
+  color: #4f46e5;
+  border-color: #c7d2fe;
+}
+.nb-bank-btn-edit::before { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+
+.nb-bank-btn-delete {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+.nb-bank-btn-delete::before { background: linear-gradient(135deg, #f87171, #dc2626); }
+
+.nb-bank-btn-icon {
+  flex-shrink: 0;
+  transform-origin: 50% 80%;
+}
+
+.nb-bank-btn:hover:not(:disabled) {
+  color: #fff;
+  border-color: transparent;
+  transform: translateY(-2px);
+}
+.nb-bank-btn-edit:hover:not(:disabled) { box-shadow: 0 8px 18px rgba(79, 70, 229, 0.28); }
+.nb-bank-btn-delete:hover:not(:disabled) { box-shadow: 0 8px 18px rgba(220, 38, 38, 0.25); }
+
+.nb-bank-btn:hover:not(:disabled)::before {
+  transform: translateY(0);
+}
+
+.nb-bank-btn-edit:hover:not(:disabled) .nb-bank-btn-icon {
+  animation: nbBankPencil 0.6s ease-in-out;
+}
+
+.nb-bank-btn-delete:hover:not(:disabled) .nb-bank-btn-icon {
+  animation: nbBankShake 0.45s ease-in-out;
+}
+
+.nb-bank-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.nb-bank-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+
+.nb-bank-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes nbBankSweep {
+  from { left: -60%; }
+  to   { left: 130%; }
+}
+
+@keyframes nbBankPencil {
+  0%, 100% { transform: rotate(0); }
+  25%      { transform: rotate(-14deg); }
+  50%      { transform: rotate(8deg); }
+  75%      { transform: rotate(-6deg); }
+}
+
+@keyframes nbBankShake {
+  0%, 100% { transform: rotate(0); }
+  20%      { transform: rotate(-12deg); }
+  40%      { transform: rotate(10deg); }
+  60%      { transform: rotate(-8deg); }
+  80%      { transform: rotate(5deg); }
+}
+
+/* Touch screens: show the fill only while pressed */
+@media (hover: none) {
+  .nb-bank .nb-bank-add-btn:hover,
+  .nb-bank-btn:hover:not(:disabled) { transform: none; }
+  .nb-bank-btn:hover:not(:disabled) { box-shadow: none; }
+  .nb-bank-btn-edit:hover:not(:disabled) { color: #4f46e5; border-color: #c7d2fe; }
+  .nb-bank-btn-delete:hover:not(:disabled) { color: #dc2626; border-color: #fecaca; }
+  .nb-bank-btn:hover:not(:disabled)::before { transform: translateY(101%); }
+  .nb-bank-btn:active:not(:disabled) { color: #fff; }
+  .nb-bank-btn:active:not(:disabled)::before { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nb-bank .nb-bank-add-btn,
+  .nb-bank .nb-bank-add-btn::after,
+  .nb-bank-add-icon,
+  .nb-bank-btn,
+  .nb-bank-btn::before,
+  .nb-bank-btn-icon {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .nb-bank .nb-bank-hero {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 14px;
+  }
+  .nb-bank .nb-bank-hero .nb-profile-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 19px;
+  }
+  .nb-bank .nb-bank-hero h3 { font-size: 19px; }
+  .nb-bank-hero-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .nb-bank-btn { height: 40px; }
+}
+
+/* ── Sticky "All Bank Details" panel (desktop only) ──
+   The window scrolls; PageHeader is sticky (~90px), so the panel sticks
+   just below it and its list scrolls inside the remaining height. */
+@media (min-width: 981px) {
+  .nb-bank .nb-profile-layout {
+    align-items: start;
+  }
+
+  .nb-bank .nb-left-panel {
+    position: sticky;
+    top: 104px;
+    z-index: 5;
+    max-height: calc(100vh - 124px);
+    max-height: calc(100dvh - 124px);
+    box-sizing: border-box;
+  }
+
+  .nb-bank .nb-left-panel .nb-left-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
+/* ── Sticky detail header card (name + Edit/Delete), desktop only ──
+   Sticks just below the PageHeader while the Details grid scrolls
+   underneath. The ::before strip hides content scrolling through the
+   small gap above the card. */
+@media (min-width: 981px) {
+  .nb-bank .nb-bank-hero {
+    position: sticky;
+    top: 104px;
+    z-index: 4;
+    box-shadow: 0 10px 24px rgba(79, 70, 229, 0.08);
+  }
+
+  .nb-bank .nb-bank-hero::before {
+    content: '';
+    position: absolute;
+    left: -18px;
+    right: -18px;
+    bottom: 100%;
+    height: 18px;
+    background: #fff;
+    pointer-events: none;
+  }
+}
+
+/* ── Sticky right panel (desktop only) ──
+   Same as the left panel: it sticks below the PageHeader and its own
+   content scrolls. The header card then sticks to the top of this panel
+   (top: 0 inside the panel's scroll area) instead of the window. */
+@media (min-width: 981px) {
+  .nb-bank .nb-right-panel {
+    position: sticky;
+    top: 104px;
+    max-height: calc(100vh - 124px);
+    max-height: calc(100dvh - 124px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: #c7c3f7 transparent;
+  }
+
+  .nb-bank .nb-right-panel::-webkit-scrollbar { width: 8px; }
+  .nb-bank .nb-right-panel::-webkit-scrollbar-thumb {
+    background: #c7c3f7;
+    border-radius: 999px;
+  }
+
+  /* Panel is a flex column with a fixed max-height: stop children from
+     shrinking (and getting clipped) so the panel itself overflows and scrolls. */
+  .nb-bank .nb-right-panel > * {
+    flex-shrink: 0;
+  }
+
+  .nb-bank .nb-right-panel .nb-bank-hero {
+    top: 0;
+  }
+
+  .nb-bank .nb-right-panel .nb-bank-hero::before {
+    display: none;
+  }
+}
+
+/* ── Bank detail header card: compact size ──
+   core/index.css forces every *-profile-hero to padding 36px 40px !important
+   + min-height 150px; that made this sticky card cover half the panel. */
+.nb-bank .nb-bank-hero {
+  padding: 14px 18px !important;
+  min-height: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+@media (max-width: 640px) {
+  .nb-bank .nb-bank-hero {
+    padding: 14px !important;
+  }
+}
+
+/* ── Sticky card flush with the top of the scrolling right panel ──
+   A scroll container's padding (16px) is kept free by sticky, so content
+   peeked through above the card. top: -16px cancels it, and the ::before
+   strip paints the panel background over that 16px band. */
+@media (min-width: 981px) {
+  .nb-bank .nb-right-panel .nb-bank-hero {
+    top: -16px;
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(79, 70, 229, 0.1);
+  }
+
+  .nb-bank .nb-right-panel .nb-bank-hero::before {
+    display: block;
+    left: -17px;
+    right: -17px;
+    height: 17px;
+    background: #fff;
+  }
+}
+
+/* ── "All Bank Details" panel fills the screen height (desktop) ──
+   Same height as the right panel's max, so both columns line up with the
+   bottom of the viewport; the list scrolls inside. min-height keeps it
+   usable on short screens. Tablet/phone (≤980px) keep the normal flow. */
+@media (min-width: 981px) {
+  .nb-bank .nb-left-panel {
+    height: calc(100vh - 124px);
+    height: calc(100dvh - 124px);
+    min-height: 360px;
+  }
+
+  .nb-bank .nb-right-panel {
+    min-height: 360px;
+  }
+}
+
+/* ── Bank list items ──
+   The list got a fixed height, and grid rows stretch by default, so a
+   single item filled the whole panel. align-content: start keeps each
+   item at its natural height. */
+.nb-bank .nb-left-list {
+  align-content: start;
+  gap: 8px;
+  padding: 2px 4px 4px 2px;
+}
+
+.nb-bank .nb-left-item {
+  position: relative;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  overflow: hidden;
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+/* accent bar on the left of the selected item */
+.nb-bank .nb-left-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, #6366f1, #8b5cf6);
+  transform: scaleY(0);
+  transition: transform 0.25s ease;
+}
+
+.nb-bank .nb-left-item:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.1);
+  transform: translateY(-1px);
+}
+
+.nb-bank .nb-left-item.active {
+  border-color: #a5b4fc;
+  background: linear-gradient(135deg, #f5f7ff, #eef2ff);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.12);
+}
+
+.nb-bank .nb-left-item.active::before {
+  transform: scaleY(1);
+}
+
+.nb-bank .nb-left-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+
+.nb-bank .nb-left-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  font-size: 15px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.nb-bank .nb-left-item.active .nb-left-avatar {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+}
+
+.nb-bank .nb-left-item-body {
+  flex: 1;
+  gap: 3px;
+}
+
+.nb-bank .nb-left-item-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.nb-bank .nb-left-item-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.nb-bank .nb-left-item-bank {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nb-bank .nb-left-item-dot {
+  color: #cbd5e1;
+  flex-shrink: 0;
+}
+
+.nb-bank .nb-left-item-mobile {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.nb-bank .nb-left-item-chevron {
+  flex-shrink: 0;
+  color: #cbd5e1;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.nb-bank .nb-left-item:hover .nb-left-item-chevron,
+.nb-bank .nb-left-item.active .nb-left-item-chevron {
+  color: #6366f1;
+  transform: translateX(2px);
+}
+
+@media (hover: none) {
+  .nb-bank .nb-left-item:hover { transform: none; }
+}
+
+/* =====================================================================
+   Bank details: grouped detail sections, reveal/copy, QR card
+   ===================================================================== */
+.nb-bank .nb-bank-details {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px;
+}
+
+.nb-detail-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.nb-detail-section-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: inline-grid;
+  place-items: center;
+  color: #4f46e5;
+  background: #eef2ff;
+  flex-shrink: 0;
+}
+
+.nb-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 10px;
+}
+
+.nb-detail-item {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.nb-detail-item:hover {
+  border-color: #c7d2fe;
+  background: #fff;
+}
+
+.nb-detail-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.nb-detail-value-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.nb-detail-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.nb-detail-item.is-empty .nb-detail-value {
+  font-size: 13px;
+  font-weight: 500;
+  font-style: italic;
+  color: #94a3b8;
+}
+
+.nb-detail-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.nb-detail-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #64748b;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.nb-detail-action:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4f46e5;
+}
+
+.nb-detail-action:active {
+  transform: scale(0.9);
+}
+
+.nb-detail-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+
+.nb-detail-action.is-done {
+  color: #16a34a;
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  animation: nbCopyPop 0.3s ease;
+}
+
+@keyframes nbCopyPop {
+  0%   { transform: scale(0.8); }
+  60%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* ── QR card ── */
+.nb-qr-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #f8fafc, #f5f7ff);
+}
+
+.nb-qr-frame {
+  flex-shrink: 0;
+  width: 150px;
+  height: 150px;
+  padding: 10px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  display: grid;
+  place-items: center;
+  cursor: zoom-in;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nb-qr-frame:hover {
+  transform: scale(1.03);
+  box-shadow: 0 10px 22px rgba(79, 70, 229, 0.14);
+}
+
+.nb-qr-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.nb-qr-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nb-qr-hint {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.nb-qr-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.nb-qr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.nb-qr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1.5px solid #c7d2fe;
+  background: #fff;
+  color: #4f46e5;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.nb-qr-btn:hover {
+  background: #eef2ff;
+  transform: translateY(-1px);
+}
+
+.nb-qr-btn.primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.22);
+}
+
+.nb-qr-btn.primary:hover {
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.3);
+}
+
+.nb-qr-btn:active {
+  transform: scale(0.96);
+}
+
+.nb-detail-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+@media (max-width: 640px) {
+  .nb-bank .nb-bank-details { padding: 12px; gap: 16px; }
+  .nb-qr-card {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .nb-qr-frame { margin: 0 auto; width: 170px; height: 170px; }
+  .nb-qr-actions { justify-content: center; }
+  .nb-qr-btn { flex: 1; justify-content: center; height: 40px; }
+  /* touch: bigger tap targets for show/copy */
+  .nb-detail-action { width: 34px; height: 34px; }
+}
+
+@media (hover: none) {
+  .nb-qr-frame:hover,
+  .nb-qr-btn:hover { transform: none; }
+}
+
+/* ── Sticky header card: keep its original 16px gap, but hide content
+   scrolling through that gap ──
+   top: 0 sticks the card at the panel's padding edge (16px below the top),
+   i.e. exactly where it sits before scrolling. The first box-shadow is a
+   solid white "mask" (spread 8px, lifted 9px) that paints over the 16px band
+   above the card and behind its rounded corners, so nothing shows through.
+   Before scrolling it only covers white panel padding, so it's invisible. */
+@media (min-width: 981px) {
+  .nb-bank .nb-right-panel .nb-bank-hero {
+    top: 0;
+    box-shadow:
+      0 -9px 0 8px #fff,
+      0 8px 18px rgba(79, 70, 229, 0.1);
+  }
+
+  .nb-bank .nb-right-panel .nb-bank-hero::before {
+    display: none;
   }
 }
