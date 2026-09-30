@@ -40,6 +40,7 @@ export default function OtpPage() {
   const [countdown, setCountdown] = useState(isNewUser ? RESEND_COUNTDOWN : 0);
   const [resending, setResending] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
+  const [showOtp, setShowOtp] = useState(false);
   const inputsRef = useRef([]);
 
   useEffect(() => { inputsRef.current[0]?.focus(); }, []);
@@ -150,17 +151,9 @@ export default function OtpPage() {
         <div className="lp-left-inner">
           <div className="lp-brand">
             <div className="lp-logo">
-              <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                <path d="M16 2L29 9V23L16 30L3 23V9L16 2Z" fill="url(#lpGradOtp)"/>
-                <path d="M16 8L12 18H20L16 24" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                <defs>
-                  <linearGradient id="lpGradOtp" x1="3" y1="2" x2="29" y2="30" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#818CF8"/><stop offset="1" stopColor="#C4B5FD"/>
-                  </linearGradient>
-                </defs>
-              </svg>
+              <img src="/setu-logo.png" alt="Setu AI" className="lp-logo-img" />
             </div>
-            <span className="lp-logo-text">Thermal Engineers and Insulators Private Limited (TEI)</span>
+            <span className="lp-logo-text">Setu AI</span>
           </div>
 
           <div className="lp-hero">
@@ -185,12 +178,33 @@ export default function OtpPage() {
 
           <form className="lp-form" onSubmit={handleVerify}>
             <div className="lp-field">
-              <label className="lp-label">Enter OTP</label>
+              <div className="lp-otp-label-row">
+                <label className="lp-label">Enter OTP</label>
+                <button
+                  type="button"
+                  className="lp-otp-toggle"
+                  onClick={() => setShowOtp(v => !v)}
+                  aria-label={showOtp ? 'Hide OTP' : 'Show OTP'}
+                  aria-pressed={showOtp}
+                >
+                  {showOtp ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.1A9.8 9.8 0 0112 5c5 0 9 4.5 10 7-.4 1-1.3 2.4-2.6 3.7M6.6 6.6C4.4 8 2.9 10.1 2 12c1 2.5 5 7 10 7 1.8 0 3.4-.5 4.8-1.3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/>
+                    </svg>
+                  )}
+                  {showOtp ? 'Hide' : 'Show'}
+                </button>
+              </div>
               <div className={`lp-otp-wrap ${error ? 'has-error shake' : ''}`} key={shakeKey}>
                 <div className="lp-otp-boxes">
                   {otp.map((digit, i) => (
                     <input key={i} ref={el => inputsRef.current[i] = el} id={`otp-input-${i}`}
-                      type="text" inputMode="numeric" maxLength={1} value={digit}
+                      type={showOtp ? 'text' : 'password'} inputMode="numeric" maxLength={1} value={digit}
                       onChange={e => handleChange(e, i)} onKeyDown={e => handleKeyDown(e, i)}
                       onPaste={handlePaste}
                       className={`lp-otp-box ${digit ? 'filled' : ''} ${success ? 'success' : ''}`}

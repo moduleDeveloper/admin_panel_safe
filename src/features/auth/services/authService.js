@@ -10,7 +10,8 @@ function digitsOnly(value = '') {
 }
 
 function buildMobileCandidates(phone, countryCode = '+91') {
-  const local = digitsOnly(phone).slice(-10);
+  const all = digitsOnly(phone);
+  const local = all.slice(-10);
   const cc = digitsOnly(countryCode);
   const base = [
     local,
@@ -18,6 +19,12 @@ function buildMobileCandidates(phone, countryCode = '+91') {
     `+${cc}${local}`,
     `0${local}`,
   ].filter(Boolean);
+
+  // Numbers longer than 10 digits (some countries, or a full number that already carries
+  // its country code) would lose digits in `local`, so also try them as-is.
+  if (all.length > 10) {
+    base.push(all, `+${all}`, `${cc}${all}`, `+${cc}${all}`);
+  }
 
   return [...new Set(base)];
 }

@@ -129,20 +129,136 @@
   gap: 24px;
 }
 
-.lp-form-header {}
+.lp-form-header {
+  text-align: center;
+  margin-top: 28px;
+}
 
 .lp-form-title {
   font-family: 'Poppins', sans-serif;
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 800;
   color: #1E1F3B;
   letter-spacing: -0.5px;
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
 .lp-form-sub {
   font-size: 14px;
   color: #9CA3AF;
+}
+
+/* Animated welcome hand: pops in, waves a few times, then waves again every few seconds */
+.lp-wave {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  /* appears right after the title finishes typing (~2.2s) */
+  animation: lpWavePop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 2.2s both;
+}
+
+.lp-wave-svg {
+  overflow: visible;
+}
+
+.lp-wave-hand {
+  transform-box: fill-box;
+  transform-origin: 70% 90%;
+  animation: lpHandWave 3.2s ease-in-out 2.7s infinite;
+}
+
+.lp-wave-line {
+  opacity: 0;
+  animation: lpWaveLine 3.2s ease-in-out 2.7s infinite;
+}
+
+.lp-wave-line-2 { animation-delay: 2.85s; }
+
+/* Typing title */
+.lp-type {
+  white-space: nowrap;
+}
+
+.lp-type-rest,
+.lp-type-w:not(.shown) {
+  visibility: hidden;
+}
+
+/* The "W": its own gradient color that keeps flowing, plus a small hop every few seconds */
+.lp-type-w {
+  display: inline-block;
+  font-size: 1.3em;
+  line-height: 1;
+  margin-right: 1px;
+  background: linear-gradient(120deg, #6366F1 0%, #A855F7 35%, #EC4899 65%, #6366F1 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  transform-origin: 50% 90%;
+}
+
+.lp-type-w.shown {
+  animation: lpWPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.lp-type.done .lp-type-w {
+  animation: lpWGradient 4s linear infinite, lpWHop 3.2s ease-in-out 1.9s infinite;
+}
+
+@keyframes lpWPop {
+  from { transform: scale(0.3) translateY(6px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes lpWGradient {
+  from { background-position: 0% 50%; }
+  to   { background-position: 250% 50%; }
+}
+
+@keyframes lpWHop {
+  0%, 40%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+  10% { transform: translateY(-5px) rotate(-6deg) scale(1.08); }
+  20% { transform: translateY(0) rotate(0deg) scale(1); }
+  28% { transform: translateY(-2px) rotate(3deg) scale(1.03); }
+}
+
+@keyframes lpWavePop {
+  from { transform: scale(0.4) rotate(-20deg); opacity: 0; }
+  to   { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+@keyframes lpHandWave {
+  0%   { transform: rotate(0deg); }
+  8%   { transform: rotate(16deg); }
+  16%  { transform: rotate(-10deg); }
+  24%  { transform: rotate(16deg); }
+  32%  { transform: rotate(-6deg); }
+  40%  { transform: rotate(8deg); }
+  48%, 100% { transform: rotate(0deg); }
+}
+
+@keyframes lpWaveLine {
+  0%, 4%    { opacity: 0; }
+  12%, 36%  { opacity: 1; }
+  48%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-wave,
+  .lp-wave-hand,
+  .lp-wave-line,
+  .lp-type-w,
+  .lp-type.done .lp-type-w {
+    animation: none;
+  }
+  .lp-wave-line { opacity: 1; }
 }
 
 /* Form */
@@ -158,12 +274,13 @@
 }
 
 .lp-phone-wrap {
+  /* positioning context for the country list; not overflow:hidden so the list can drop below */
+  position: relative;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   border: 1.5px solid rgba(99,102,241,0.18);
   border-radius: 13px;
   background: white;
-  overflow: hidden;
   transition: all 0.25s ease;
   box-shadow: 0 2px 8px rgba(99,102,241,0.06);
 }
@@ -185,20 +302,6 @@
 }
 
 .lp-phone-wrap.shake { animation: lpShake 0.42s ease; }
-
-.lp-cc {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 12px;
-  border-right: 1.5px solid rgba(99,102,241,0.12);
-  flex-shrink: 0;
-  height: 50px;
-  background: #F5F7FF;
-}
-
-.lp-flag { font-size: 18px; line-height: 1; }
-.lp-cc-text { font-size: 14px; font-weight: 600; color: #374151; }
 
 .lp-phone-input {
   flex: 1;
@@ -232,7 +335,10 @@
 
 /* Button */
 .lp-btn {
+  /* Narrower than the form, centered; shrinks with the screen on small phones */
   width: 100%;
+  max-width: 260px;
+  align-self: center;
   height: 50px;
   border: none;
   border-radius: 13px;
@@ -274,6 +380,141 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Animations: logo + Get OTP button ── */
+
+/* Logo: gentle float, breathing glow, a light sweep and a bolt that draws in then flickers */
+.lp-logo {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  animation: lpLogoFloat 4s ease-in-out infinite, lpLogoGlow 3s ease-in-out infinite;
+}
+
+.lp-logo::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -120%;
+  width: 60%;
+  height: 200%;
+  background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+  transform: rotate(12deg);
+  animation: lpLogoShine 3.6s ease-in-out 1.2s infinite;
+  pointer-events: none;
+}
+
+.lp-logo svg {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lp-brand:hover .lp-logo svg {
+  transform: rotate(-12deg) scale(1.12);
+}
+
+.lp-logo-bolt {
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: lpBoltDraw 0.9s ease-out 0.3s forwards, lpBoltFlicker 4s ease-in-out 1.4s infinite;
+}
+
+@keyframes lpLogoFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+@keyframes lpLogoGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196,181,253,0.0), 0 4px 14px rgba(30,27,75,0.18); }
+  50%      { box-shadow: 0 0 0 6px rgba(196,181,253,0.18), 0 6px 22px rgba(196,181,253,0.45); }
+}
+
+@keyframes lpLogoShine {
+  0%   { left: -120%; }
+  45%  { left: 160%; }
+  100% { left: 160%; }
+}
+
+@keyframes lpBoltDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes lpBoltFlicker {
+  0%, 86%, 100% { opacity: 1; filter: none; }
+  89%           { opacity: 0.35; }
+  92%           { opacity: 1; filter: drop-shadow(0 0 3px #fff); }
+  95%           { opacity: 0.6; }
+}
+
+/* Button: periodic shimmer, arrow nudge, and a soft pulse once the number is complete */
+.lp-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -75%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
+  transform: skewX(-20deg);
+  animation: lpBtnShimmer 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.lp-btn.loading::after { animation: none; opacity: 0; }
+
+.lp-btn-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.lp-btn-arrow {
+  transition: transform 0.25s ease;
+}
+
+.lp-btn:hover:not(.loading) .lp-btn-arrow {
+  transform: translateX(4px);
+}
+
+.lp-btn.ready {
+  animation: lpBtnPulse 1.8s ease-in-out infinite;
+}
+
+.lp-btn.ready .lp-btn-arrow {
+  animation: lpArrowNudge 1.2s ease-in-out infinite;
+}
+
+.lp-btn:active:not(.loading) {
+  transform: scale(0.98);
+}
+
+@keyframes lpBtnShimmer {
+  0%   { left: -75%; }
+  55%  { left: 130%; }
+  100% { left: 130%; }
+}
+
+@keyframes lpBtnPulse {
+  0%, 100% { box-shadow: 0 6px 20px rgba(99,102,241,0.38), 0 0 0 0 rgba(139,92,246,0.45); }
+  50%      { box-shadow: 0 8px 26px rgba(99,102,241,0.45), 0 0 0 7px rgba(139,92,246,0); }
+}
+
+@keyframes lpArrowNudge {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(5px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-logo,
+  .lp-logo::before,
+  .lp-logo-bolt,
+  .lp-btn::after,
+  .lp-btn.ready,
+  .lp-btn.ready .lp-btn-arrow {
+    animation: none;
+  }
+  .lp-logo-bolt { stroke-dashoffset: 0; }
+}
+
 /* Badges */
 .lp-badges {
   display: flex;
@@ -303,10 +544,64 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .lp-root { flex-direction: column; }
-  .lp-left { flex: 0 0 200px; }
-  .lp-left-inner { padding: 28px; gap: 20px; }
-  .lp-hero-title { font-size: 24px; }
+  /* Let the page grow with its content instead of clipping it to a fixed-height banner */
+  .lp-root {
+    flex-direction: column;
+    width: 100%;
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .lp-left {
+    flex: 0 0 auto;
+    align-items: flex-start;
+    border-radius: 0 0 24px 24px;
+  }
+  .lp-left-inner {
+    max-width: none;
+    padding: 28px 20px 26px;
+    gap: 16px;
+  }
+  .lp-logo { width: 40px; height: 40px; flex-shrink: 0; }
+  .lp-logo-text { font-size: 15px; line-height: 1.35; }
+  .lp-hero-title { font-size: 24px; margin-bottom: 8px; }
+  .lp-hero-sub { font-size: 13px; line-height: 1.55; }
   .lp-features { display: none; }
-  .lp-form-wrap { padding: 24px 20px; }
+  .lp-deco-1 { width: 220px; height: 220px; top: -80px; right: -70px; }
+  .lp-deco-3 { display: none; }
+  .lp-right {
+    flex: 1 0 auto;
+    align-items: flex-start;
+    overflow: visible;
+  }
+  .lp-form-wrap {
+    max-width: 440px;
+    padding: 28px 20px 24px;
+    gap: 22px;
+  }
+  .lp-badges { justify-content: center; }
+  .lp-form-title { font-size: 27px; }
+  .lp-btn { max-width: 220px; height: 46px; font-size: 14.5px; }
 }
+
+@media (max-width: 360px) {
+  .lp-hero-title { font-size: 21px; }
+  .lp-form-title { font-size: 24px; }
+}
+
+/* Setu AI logo image */
+.lp-logo:has(.lp-logo-img) {
+  width: 56px; height: 56px;
+  padding: 0;
+  background: #000;
+}
+.lp-logo-img {
+  position: relative;
+  z-index: 1;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.lp-brand:hover .lp-logo-img { transform: scale(1.08); }

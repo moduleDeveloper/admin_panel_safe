@@ -143,3 +143,25 @@
   }
   .lp-otp-boxes { gap: 7px; }
 }
+
+/* Show / hide OTP toggle */
+.lp-otp-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.lp-otp-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #6366F1;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.lp-otp-toggle:hover { background: rgba(99,102,241,0.08); }
+.lp-otp-toggle:focus-visible { outline: 2px solid #6366F1; outline-offset: 2px; }
