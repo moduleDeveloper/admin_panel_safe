@@ -3,16 +3,16 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import './LoginPage.css';
 import './OtpPage.css';
 import {
-  verifyOtp,
-  sendOtp,
+  loginToAdminPanel,
   recordAdminSessionAction,
   ADMIN_SUPERUSER_SESSION_KEY,
   ADMIN_NAME_SESSION_KEY,
   ADMIN_MOBILE_SESSION_KEY,
+  ADMIN_MEMBERS_SESSION_KEY,
 } from '../services/authService';
 
 const OTP_LENGTH = 6;
-const RESEND_COUNTDOWN = 30;
+const INVALID_CREDENTIALS_MESSAGE = 'Invalid mobile or secret code';
 
 export default function OtpPage() {
   const navigate = useNavigate();
@@ -21,10 +21,6 @@ export default function OtpPage() {
     phone = '',
     countryCode = '+91',
     fullMobile = '',
-    superuserId = null,
-    userName = 'User',
-    trusts = [],
-    isNewUser = false,
   } = location.state || {};
 
   useEffect(() => {
@@ -37,18 +33,10 @@ export default function OtpPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [countdown, setCountdown] = useState(isNewUser ? RESEND_COUNTDOWN : 0);
-  const [resending, setResending] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
   const inputsRef = useRef([]);
 
   useEffect(() => { inputsRef.current[0]?.focus(); }, []);
-
-  useEffect(() => {
-    if (!isNewUser || countdown <= 0) return;
-    const id = setInterval(() => setCountdown(c => c - 1), 1000);
-    return () => clearInterval(id);
-  }, [countdown, isNewUser]);
 
   const handleChange = (e, idx) => {
     const val = e.target.value.replace(/\D/g, '').slice(-1);
@@ -77,6 +65,7 @@ export default function OtpPage() {
 
   const handleVerify = async (e) => {
     e.preventDefault();
+    if (loading || success) return;
     const code = otp.join('');
     if (code.length < OTP_LENGTH) {
       setError('Please enter the complete 6-digit OTP.');
@@ -84,61 +73,68 @@ export default function OtpPage() {
       return;
     }
     setLoading(true);
-    const { valid, reason } = await verifyOtp(fullMobile || phone, code);
 
-    if (valid) {
+    let result = null;
+    let rpcFailed = false;
+    try {
+      const { data, error: rpcError } = await loginToAdminPanel(phone, code);
+      if (rpcError) rpcFailed = true;
+      else result = data;
+    } catch {
+      rpcFailed = true;
+    }
+
+    if (!rpcFailed && result?.success === true) {
+      const superuserId = result.superuser_id;
+      const userName = result.name || 'Admin';
+      const mobile = result.mobile != null ? String(result.mobile) : phone;
+      const trusts = Array.isArray(result.trusts) ? result.trusts : [];
+
       setLoading(false);
       setSuccess(true);
-      if (typeof window !== 'undefined' && superuserId) {
+      if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(ADMIN_SUPERUSER_SESSION_KEY, String(superuserId));
-        window.sessionStorage.setItem(ADMIN_NAME_SESSION_KEY, String(userName || 'Admin'));
-        window.sessionStorage.setItem(ADMIN_MOBILE_SESSION_KEY, String(fullMobile || phone || ''));
+        window.sessionStorage.setItem(ADMIN_NAME_SESSION_KEY, String(userName));
+        window.sessionStorage.setItem(ADMIN_MOBILE_SESSION_KEY, mobile);
+        if (result.members_id) {
+          window.sessionStorage.setItem(ADMIN_MEMBERS_SESSION_KEY, String(result.members_id));
+        }
       }
-      if (superuserId) {
+      try {
         await recordAdminSessionAction({
           superuserId,
-          name: userName || null,
-          mobile: fullMobile || phone || null,
+          name: userName,
+          mobile,
           actionType: 'login',
-          metadata: { source: 'otp_verify' },
+          metadata: { source: 'rpc_login' },
         });
+      } catch {
+        // session logging must not block login
       }
       await new Promise(res => setTimeout(res, 700));
 
       navigate('/select-trust', {
         state: {
           superuserId,
+          membersId: result.members_id || null,
           userName,
           trusts,
           phone,
           countryCode,
           fullMobile,
-          isNewUser,
         },
       });
-    } else {
-      setLoading(false);
-      if (reason === 'secretcode_missing') {
-        setError('Secret code not set for this account. Please contact support.');
-      } else if (reason === 'secretcode_mismatch') {
-        setError('Invalid secret code. Please try again.');
-      } else {
-        setError('Invalid OTP. Please try again.');
-      }
-      setShakeKey(k => k + 1);
-      setOtp(Array(OTP_LENGTH).fill(''));
-      inputsRef.current[0]?.focus();
+      return;
     }
-  };
 
-  const handleResend = async () => {
-    if (!isNewUser || countdown > 0) return;
-    setResending(true);
+    setLoading(false);
+    if (rpcFailed || !result) {
+      setError('Unable to sign in right now. Please try again.');
+    } else {
+      setError(result.message || INVALID_CREDENTIALS_MESSAGE);
+    }
+    setShakeKey(k => k + 1);
     setOtp(Array(OTP_LENGTH).fill(''));
-    setError('');
-    await sendOtp(fullMobile || `${countryCode}${phone}`);
-    setResending(false);
-    setCountdown(RESEND_COUNTDOWN);
     inputsRef.current[0]?.focus();
   };
 
@@ -243,17 +239,6 @@ export default function OtpPage() {
               )}
             </button>
           </form>
-
-          {isNewUser && (
-            <div className="lp-resend">
-              <span>Didn't receive the code?</span>
-              {countdown > 0
-                ? <span className="lp-resend-count">Resend in <strong>{countdown}s</strong></span>
-                : <button type="button" className="lp-resend-btn" onClick={handleResend} disabled={resending}>
-                    {resending ? 'Sending...' : 'Resend OTP'}
-                  </button>}
-            </div>
-          )}
 
           <button className="lp-back" onClick={() => navigate('/login')}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

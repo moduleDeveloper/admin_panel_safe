@@ -1,0 +1,210 @@
+/* ── Trust Insights page (visual language mirrors Dashboard dp-* cards) ── */
+.ti-card {
+  background: #fff;
+  border: 1px solid #eceffd;
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+  margin-bottom: 16px;
+  min-width: 0;
+}
+
+.ti-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ti-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e1f3b;
+}
+
+.ti-head span {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: #6f768f;
+}
+
+.ti-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ti-presets button {
+  border: none;
+  background: #f1f3ff;
+  color: #4f58d8;
+  border-radius: 8px;
+  font-size: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.ti-presets button.is-active {
+  background: #4f58d8;
+  color: #fff;
+}
+
+.ti-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.ti-range label {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: #6f768f;
+}
+
+.ti-range input {
+  border: 1px solid #dfe3f6;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #1f275f;
+  background: #f8faff;
+}
+
+.ti-alert {
+  width: 100%;
+  font-size: 12px;
+  color: #b91c1c;
+  background: #fee2e2;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.ti-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  transition: opacity 0.2s ease;
+}
+
+.ti-kpis.is-loading,
+.ti-table-wrap.is-loading { opacity: 0.6; }
+
+.ti-kpi {
+  background: #fff;
+  border: 1px solid #eceffd;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 3px 10px rgba(37, 56, 117, 0.05);
+  min-width: 0;
+}
+
+.ti-kpi-title { font-size: 12px; color: #6f768f; }
+.ti-kpi-value { margin-top: 6px; font-size: 28px; font-weight: 800; color: #1e1f3b; line-height: 1; }
+.ti-kpi-value.ti-kpi-value-sm { font-size: 16px; line-height: 1.25; }
+.ti-kpi-note { margin-top: 6px; font-size: 11px; color: #4f5d7e; overflow-wrap: anywhere; }
+.ti-violet { border-top: 3px solid #6f58ff; }
+.ti-green { border-top: 3px solid #22b573; }
+.ti-orange { border-top: 3px solid #ff9f1a; }
+.ti-cyan { border-top: 3px solid #00b3c9; }
+
+.ti-list-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f275f;
+}
+
+.ti-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4f58d8;
+  background: #eef2ff;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.ti-list-title em {
+  font-style: normal;
+  font-weight: 500;
+  font-size: 11px;
+  color: #8b90a8;
+}
+
+.ti-empty {
+  font-size: 12px;
+  color: #7f88a8;
+  padding: 10px 2px;
+}
+
+.ti-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #edf0fb;
+  border-radius: 10px;
+}
+
+.ti-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.ti-table th,
+.ti-table td {
+  text-align: left;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.ti-table th {
+  background: #f8faff;
+  color: #6f768f;
+  font-weight: 600;
+}
+
+.ti-table td { color: #1f275f; border-top: 1px solid #edf0fb; }
+
+.ti-trust {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ti-trust-logo {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #4f58d8;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ti-trust-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ti-trust-name { font-weight: 600; }
+
+@media (max-width: 1200px) {
+  .ti-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 480px) {
+  .ti-kpis { grid-template-columns: 1fr; }
+  .ti-range label { flex: 1 1 140px; }
+  .ti-range input { width: 100%; }
+}

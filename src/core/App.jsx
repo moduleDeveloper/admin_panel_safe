@@ -32,6 +32,7 @@ const BankDetailsPage = lazy(() => import('../features/company-details/pages/Ban
 const CreateVideoPage = lazy(() => import('../features/social-media/pages/CreateVideoPage.jsx'));
 const LinkedTrustsPage = lazy(() => import('../features/company-details/pages/LinkedTrustsPage.jsx'));
 const NominationsPage = lazy(() => import('../features/extra/pages/NominationsPage.jsx'));
+const TrustInsightsPage = lazy(() => import('../features/extra/pages/TrustInsightsPage.jsx'));
 
 function App() {
   return (
@@ -85,6 +86,7 @@ function App() {
           <Route path="/video/create" element={<CreateVideoPage />} />
           <Route path="/linked-trusts" element={<LinkedTrustsPage />} />
           <Route path="/nominations" element={<NominationsPage />} />
+          <Route path="/trust-insights" element={<TrustInsightsPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
