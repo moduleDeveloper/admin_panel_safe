@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './LoginPage.css';
-import { findSuperuserByMobile, fetchLinkedTrusts, sendOtp } from '../services/authService';
 
 const COUNTRY_CODE = '+91';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [phone,   setPhone]   = useState('');
-  const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
   const [shake,   setShake]   = useState(false);
 
@@ -24,36 +22,12 @@ export default function LoginPage() {
     setTimeout(() => setShake(false), 500);
   };
 
-  const handleSendOtp = async (e) => {
+  const handleSendOtp = (e) => {
     e.preventDefault();
     if (phone.length < 10) { triggerError('Please enter a valid 10-digit mobile number.'); return; }
-    setLoading(true); setError('');
-    try {
-      const fullMobile = `${COUNTRY_CODE}${phone}`;
-      const { data: superuser, error: superuserError } = await findSuperuserByMobile(phone, COUNTRY_CODE);
-      if (superuserError) throw superuserError;
-
-      const isNewUser = !superuser;
-      let trusts = [];
-      if (!isNewUser) {
-        if (superuser.is_active === false) { triggerError('This account is inactive. Contact support.'); return; }
-        const { data: fetchedTrusts, error: trustsError } = await fetchLinkedTrusts(superuser.id);
-        if (trustsError) {
-          triggerError(`Trust load failed: ${trustsError.message || 'Unknown error'}`);
-          return;
-        }
-        trusts = fetchedTrusts || [];
-      }
-      if (isNewUser) { await sendOtp(fullMobile); }
-
-      navigate('/verify-otp', {
-        state: { phone, countryCode: COUNTRY_CODE, fullMobile, superuserId: superuser?.id || null, userName: superuser?.name || 'User', trusts, isNewUser },
-      });
-    } catch (err) {
-      triggerError('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    navigate('/verify-otp', {
+      state: { phone, countryCode: COUNTRY_CODE, fullMobile: `${COUNTRY_CODE}${phone}` },
+    });
   };
 
   return (
@@ -116,7 +90,14 @@ export default function LoginPage() {
               <label className="lp-label">Mobile Number</label>
               <div className={`lp-phone-wrap ${error ? 'has-error' : ''} ${shake ? 'shake' : ''}`}>
                 <div className="lp-cc">
-                  <span className="lp-flag">🇮🇳</span>
+                  {/* SVG instead of the flag emoji, which Windows renders as the letters "IN" */}
+                  <svg className="lp-flag" width="22" height="15" viewBox="0 0 22 15" aria-hidden="true">
+                    <rect width="22" height="5" fill="#FF9933" />
+                    <rect y="5" width="22" height="5" fill="#FFFFFF" />
+                    <rect y="10" width="22" height="5" fill="#138808" />
+                    <circle cx="11" cy="7.5" r="2" fill="none" stroke="#000080" strokeWidth="0.7" />
+                    <rect x="0.5" y="0.5" width="21" height="14" rx="2" fill="none" stroke="rgba(0,0,0,0.12)" />
+                  </svg>
                   <span className="lp-cc-text">+91</span>
                 </div>
                 <input
@@ -152,19 +133,14 @@ export default function LoginPage() {
             <button
               id="send-otp-btn"
               type="submit"
-              className={`lp-btn ${loading ? 'loading' : ''}`}
-              disabled={loading}
+              className="lp-btn"
             >
-              {loading ? (
-                <span className="lp-btn-inner"><span className="lp-spinner"/>Sending OTP...</span>
-              ) : (
-                <span className="lp-btn-inner">
+                            <span className="lp-btn-inner">
                   Get OTP
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                     <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </span>
-              )}
             </button>
           </form>
 
