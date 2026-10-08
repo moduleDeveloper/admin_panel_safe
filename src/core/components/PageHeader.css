@@ -1,0 +1,134 @@
+.ph-header {
+  background: white;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.08);
+  padding: 20px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.ph-back {
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #F5F7FF, #EEF2FF);
+  border: 1.5px solid rgba(99, 102, 241, 0.2);
+  border-radius: 10px;
+  color: #6366F1;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 8px 18px rgba(99, 102, 241, 0.14);
+  position: relative;
+  overflow: hidden;
+}
+
+.ph-back:hover {
+  background: linear-gradient(135deg, #EEF2FF, #E0E7FF);
+  border-color: rgba(99, 102, 241, 0.35);
+  transform: translateX(-2px) scale(1.03);
+  box-shadow: 0 14px 26px rgba(99, 102, 241, 0.2);
+}
+
+.ph-back:active {
+  transform: translateX(-1px) scale(0.99);
+  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.16);
+}
+
+.ph-back:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25), 0 12px 22px rgba(99, 102, 241, 0.2);
+}
+
+.ph-back::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top left, rgba(99, 102, 241, 0.18), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.ph-back:hover::after {
+  opacity: 1;
+}
+
+.ph-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.ph-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(22px, 2.2vw, 26px);
+  font-weight: 800;
+  color: #1E1F3B;
+  letter-spacing: -0.3px;
+  margin: 0;
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+.ph-subtitle {
+  font-size: 13px;
+  color: #9CA3AF;
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.ph-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 980px) {
+  .ph-header {
+    padding-left: 66px;
+    padding-right: 16px;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ph-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px 18px 16px 66px;
+    gap: 12px;
+  }
+
+  .ph-right {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .ph-header {
+    padding: 12px 10px 12px 58px;
+  }
+
+  .ph-back {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .ph-title {
+    font-size: 20px;
+  }
+
+  .ph-subtitle {
+    font-size: 12px;
+  }
+}

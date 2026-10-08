@@ -1,0 +1,82 @@
+.module-card {
+  border: none;
+  border-radius: 24px;
+  padding: 22px 20px;
+  min-height: 158px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  color: #fff;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 22px 44px rgba(236, 72, 153, 0.22);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.module-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 28px 54px rgba(245, 158, 11, 0.28);
+}
+
+.module-card-shine {
+  position: absolute;
+  inset: -20% auto -20% -10%;
+  width: 40%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0));
+  transform: rotate(18deg);
+  pointer-events: none;
+}
+
+.module-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.module-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.module-card-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.module-card-desc {
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.92);
+  max-width: 220px;
+}
+
+.module-card-arrow {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+@media (max-width: 640px) {
+  .module-card {
+    grid-template-columns: 1fr;
+    justify-items: flex-start;
+    min-height: auto;
+  }
+
+  .module-card-arrow {
+    justify-self: flex-end;
+  }
+}
