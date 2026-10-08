@@ -2,7 +2,8 @@ import { supabase } from '../../../core/lib/supabase';
 
 // User panel activity is read only through:
 //   page_tracking_rpc(p_action text, p_payload jsonb)
-// Action: up_activity_view  payload { trust_id, user_reg_id, limit, offset }
+// Action: up_activity_view  payload { trust_id, user_reg_id?, limit, offset }
+//   user_reg_id omitted -> activity of all users in the trust
 // Response: { success, data: [], limit, offset }  (no total_count; limit is capped at 500)
 const PAGE_TRACKING_RPC = 'page_tracking_rpc';
 const ACTION_ACTIVITY_VIEW = 'up_activity_view';
@@ -27,13 +28,12 @@ export async function fetchUserPanelActivityPage({
   offset = 0,
 } = {}) {
   if (!trustId) throw new Error('Trust is required.');
-  if (!userRegId) throw new Error('User is required.');
 
   const { data, error } = await supabase.rpc(PAGE_TRACKING_RPC, {
     p_action: ACTION_ACTIVITY_VIEW,
     p_payload: {
       trust_id: trustId,
-      user_reg_id: userRegId,
+      ...(userRegId ? { user_reg_id: userRegId } : {}),
       limit,
       offset,
     },
