@@ -1,0 +1,204 @@
+/* Country-code picker used inside the login phone field (.lp-phone-wrap is its positioning context) */
+.cp-root {
+  display: flex;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+
+.cp-trigger {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 100%;
+  min-height: 50px;
+  padding: 0 10px 0 12px;
+  border: none;
+  border-right: 1.5px solid rgba(99, 102, 241, 0.12);
+  border-radius: 11.5px 0 0 11.5px;
+  background: #F5F7FF;
+  color: #1E1F3B;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.cp-trigger:hover,
+.cp-trigger.open {
+  background: #EEF2FF;
+}
+
+.cp-trigger:focus-visible {
+  outline: 2px solid #6366F1;
+  outline-offset: -2px;
+}
+
+.cp-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.cp-code {
+  display: inline-flex;
+  align-items: center;
+  height: 18px; /* same box height as the flag so both share one centre line */
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-chevron {
+  display: block;
+  flex-shrink: 0;
+}
+
+.cp-chevron {
+  color: #6366F1;
+  transition: transform 0.2s ease;
+}
+
+.cp-trigger.open .cp-chevron {
+  transform: rotate(180deg);
+}
+
+/* Flag: emoji where supported, otherwise a compact ISO badge */
+.cp-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  font-size: 19px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Plain-text ISO code (no badge), sized and centred to sit on the same line as the dial code */
+.cp-flag-iso {
+  min-width: 18px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #6B7280;
+}
+
+/* Dropdown panel */
+.cp-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: #fff;
+  border: 1px solid rgba(99, 102, 241, 0.16);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(30, 31, 59, 0.16), 0 2px 8px rgba(99, 102, 241, 0.08);
+  overflow: hidden;
+  transform-origin: top center;
+  animation: cpIn 0.16s ease-out;
+}
+
+@keyframes cpIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.cp-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+  color: #9CA3AF;
+}
+
+.cp-search input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px; /* 16px avoids iOS zoom on focus */
+  color: #1E1F3B;
+}
+
+.cp-search input::placeholder {
+  color: #B4B7CC;
+  font-size: 14px;
+}
+
+.cp-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 264px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.cp-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  color: #374151;
+  font-size: 14px;
+  user-select: none;
+}
+
+.cp-option.active {
+  background: #F5F7FF;
+}
+
+.cp-option.selected {
+  color: #4338CA;
+  font-weight: 600;
+}
+
+.cp-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-option-code {
+  color: #6B7280;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-check {
+  color: #6366F1;
+  flex-shrink: 0;
+  visibility: hidden;
+}
+
+.cp-option.selected .cp-check {
+  visibility: visible;
+}
+
+.cp-empty {
+  padding: 18px 10px;
+  text-align: center;
+  color: #9CA3AF;
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .cp-trigger { padding: 0 8px 0 10px; gap: 6px; }
+  .cp-list { max-height: 232px; }
+  .cp-option { min-height: 46px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-panel { animation: none; }
+  .cp-chevron { transition: none; }
+}
