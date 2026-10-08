@@ -1,0 +1,134 @@
+.features-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.features-card-item {
+  display: grid;
+  gap: 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(30, 64, 175, 0.16);
+  background:
+    radial-gradient(460px 160px at 95% -25%, rgba(14, 165, 233, 0.26), transparent 56%),
+    linear-gradient(145deg, #1d4ed8 0%, #2563eb 46%, #0ea5e9 100%);
+  padding: 16px;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.2);
+  color: #fff;
+}
+
+.features-card-top {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+
+.features-card-top:disabled {
+  cursor: default;
+}
+
+.features-card-icon-wrap {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.22);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.features-card-icon-image {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.features-card-icon-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.features-card-icon-svg svg {
+  width: 30px;
+  height: 30px;
+}
+
+.features-card-icon-fallback {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.features-card-title-wrap {
+  display: grid;
+  gap: 4px;
+}
+
+.features-card-title {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.features-card-tagline {
+  font-size: 15px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.features-card-options {
+  display: grid;
+  gap: 8px;
+}
+
+.features-card-option {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.1));
+  color: #fff;
+  padding: 9px 11px;
+  text-align: left;
+  display: grid;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.features-card-option:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.features-card-option-label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.features-card-option-tagline {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.features-card-no-options,
+.features-cards-loading,
+.features-cards-empty,
+.features-cards-error {
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  font-size: 14px;
+}
+
+@media (max-width: 1080px) {
+  .features-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
