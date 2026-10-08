@@ -219,3 +219,106 @@
   }
   .ua-top-btn.is-visible { opacity: 1; transform: none; pointer-events: auto; }
 }
+
+/* ── Chart detail modal ─────────────────────────────────────────────────── */
+.ua-clickable { cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s; }
+.ua-clickable:hover { border-color: #c7d6f5; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08); }
+.ua-clickable:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.ua-clickable h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ua-more { font-size: 11px; font-weight: 600; color: #2563eb; white-space: nowrap; }
+@media (hover: hover) {
+  .ua-more { opacity: 0; transition: opacity 0.15s; }
+  .ua-clickable:hover .ua-more, .ua-clickable:focus-visible .ua-more { opacity: 1; }
+}
+
+.ua-modal-backdrop {
+  position: fixed; inset: 0; z-index: 1300; display: grid; place-items: center; padding: 24px;
+  background: rgba(17, 24, 39, 0.5);
+}
+.ua-modal {
+  width: min(920px, 100%); max-height: calc(100vh - 48px); display: flex; flex-direction: column;
+  background: #fff; border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); overflow: hidden;
+}
+.ua-modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 22px 12px; border-bottom: 1px solid #eef1f6; }
+.ua-modal-head h2 { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
+.ua-modal-head p { margin: 4px 0 0; font-size: 12.5px; color: #6b7280; }
+.ua-modal-close {
+  width: 32px; height: 32px; border: 0; border-radius: 8px; background: #f3f4f6; color: #374151;
+  font-size: 20px; line-height: 1; cursor: pointer; flex: none;
+}
+.ua-modal-close:hover { background: #e5e7eb; }
+.ua-modal-body { padding: 16px 22px 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+.ua-modal-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.ua-modal-stat { background: #f6f8ff; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ua-modal-stat span { font-size: 12px; color: #6b7280; }
+.ua-modal-stat b { font-size: 15px; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ua-modal-table { width: 100%; }
+.ua-modal-route { max-width: 380px; overflow: hidden; text-overflow: ellipsis; }
+.ua-modal-bar { width: 30%; }
+.ua-modal-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 8px; }
+.ua-modal-split { display: grid; grid-template-columns: 220px 1fr; gap: 20px; align-items: start; }
+.ua-modal-donut .ua-donut { width: 200px; height: 200px; }
+
+@media (max-width: 600px) {
+  /* Bottom sheet */
+  .ua-modal-backdrop { padding: 0; place-items: end stretch; }
+  .ua-modal { width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; }
+  .ua-modal-head { padding: 14px 16px 10px; }
+  .ua-modal-head h2 { font-size: 16px; }
+  .ua-modal-close { width: 36px; height: 36px; }
+  .ua-modal-body { padding: 12px 16px 20px; gap: 12px; }
+  .ua-modal-stats { grid-template-columns: 1fr 1fr; }
+  .ua-modal-split { grid-template-columns: 1fr; gap: 12px; }
+  .ua-modal-donut { display: flex; justify-content: center; }
+  .ua-modal-donut .ua-donut { width: 170px; height: 170px; }
+
+  /* Keep real tables inside the modal (the page's mobile card layout must not apply) */
+  .ua-modal .ua-modal-table { display: table; }
+  .ua-modal .ua-modal-table thead { display: table-header-group; }
+  .ua-modal .ua-modal-table tbody { display: table-row-group; }
+  .ua-modal .ua-modal-table tbody tr { display: table-row; padding: 0; margin: 0; border: 0; border-radius: 0; }
+  .ua-modal .ua-modal-table th { padding: 8px 8px; font-size: 12px; }
+  .ua-modal .ua-modal-table td {
+    display: table-cell; padding: 8px; border-bottom: 1px solid #eef1f6; text-align: left;
+    white-space: normal; word-break: break-word; font-size: 12.5px;
+  }
+  .ua-modal .ua-modal-table .ua-modal-bar { display: none; }
+  .ua-modal .ua-modal-table thead th:last-child:empty { display: none; }
+  .ua-modal-route { max-width: none; }
+}
+
+/* Trend chart hover tooltip */
+.ua-tip-guide { stroke: #93b4f5; stroke-width: 1; stroke-dasharray: 3 3; }
+.ua-tip-dot { fill: #fff; stroke: #2563eb; stroke-width: 2.5; }
+.ua-tip-bg { fill: #111827; opacity: 0.94; }
+.ua-tip-date { fill: #cbd5e1; font-size: 11px; }
+.ua-tip-val { fill: #fff; font-size: 12.5px; font-weight: 700; }
+
+/* Activity list collapse (mobile only) */
+.ua-collapse-btn { display: none; }
+.ua-table-head h3 { margin: 0 0 12px; }
+
+@media (max-width: 600px) {
+  .ua-table-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .ua-table-head h3 { margin: 0; }
+  .ua-collapse-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; flex: none;
+    border: 1px solid #e3e7f6; border-radius: 8px; background: #f6f8ff; color: #3b4a8f;
+    font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer;
+  }
+  .ua-collapse-btn span { font-size: 10px; }
+  .ua-table-wrap.is-collapsed, .ua-pager.is-collapsed { display: none; }
+}
+
+/* Summary cards collapse (mobile only) */
+.ua-kpi-toggle { display: none; }
+
+@media (max-width: 600px) {
+  .ua-kpi-toggle {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    padding: 9px 12px; border: 1px solid #e3e7f6; border-radius: 10px; background: #fff;
+    color: #3b4a8f; font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer;
+  }
+  .ua-kpi-toggle span { font-size: 10px; }
+  .ua-kpis.is-collapsed { display: none; }
+}
