@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PageHeader from '../../../core/components/PageHeader';
 import Sidebar from '../../../core/components/Sidebar';
@@ -43,20 +43,17 @@ const formatShortDate = (key) => {
 
 const RANGE_PRESETS = [
   { id: 'today', label: 'Today' },
-  { id: 'week', label: 'This Week' },
-  { id: 'month', label: 'This Month' },
+  { id: 'week', label: 'Last 7 Days' },
+  { id: 'month', label: 'Last 30 Days' },
   { id: 'custom', label: 'Custom' },
 ];
 const DEFAULT_RANGE = 'today';
 
-// Resolves a preset to inclusive local date keys. Week starts on Monday.
+// Resolves a preset to inclusive local date keys. Rolling windows include today.
 const presetRange = (preset, todayKey) => {
   if (preset === 'today') return { from: todayKey, to: todayKey };
-  if (preset === 'week') {
-    const day = new Date(`${todayKey}T00:00:00`).getDay();
-    return { from: addDaysToKey(todayKey, -((day + 6) % 7)), to: todayKey };
-  }
-  if (preset === 'month') return { from: `${todayKey.slice(0, 8)}01`, to: todayKey };
+  if (preset === 'week') return { from: addDaysToKey(todayKey, -6), to: todayKey };
+  if (preset === 'month') return { from: addDaysToKey(todayKey, -29), to: todayKey };
   return { from: '', to: '' };
 };
 
@@ -99,9 +96,9 @@ function ResponsiveChart({ children }) {
   return <div ref={ref} className="ua-chart-box">{width > 0 && children(width)}</div>;
 }
 
-function TrendChart({ trend, width }) {
+function TrendChart({ trend, width, height = CHART_HEIGHT }) {
   const W = width;
-  const H = CHART_HEIGHT;
+  const H = height;
   const pad = { l: 36, r: 12, t: 10, b: 24 };
   const max = Math.max(...trend.map((t) => t.count), 1);
   const niceMax = Math.ceil(max / 4) * 4 || 4;
@@ -116,8 +113,31 @@ function TrendChart({ trend, width }) {
   const ticks = [0, 1, 2, 3, 4].map((i) => (niceMax / 4) * i);
   const labelStep = Math.max(Math.ceil(trend.length / Math.max(Math.floor(W / 64), 2)), 1);
 
+  // Hover: snap to the nearest point and show its value in a tooltip
+  const [hoverIndex, setHoverIndex] = useState(null);
+  const handleMove = (event) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const px = event.clientX - box.left;
+    if (!trend.length || px < pad.l - 12 || px > W - pad.r + 12) { setHoverIndex(null); return; }
+    const raw = trend.length > 1 ? Math.round(((px - pad.l) / innerW) * (trend.length - 1)) : 0;
+    setHoverIndex(Math.min(Math.max(raw, 0), trend.length - 1));
+  };
+  const hovered = hoverIndex !== null ? trend[hoverIndex] : null;
+  const tipW = 118;
+  const tipH = 40;
+  const tipX = hovered ? Math.min(Math.max(x(hoverIndex) - tipW / 2, 2), W - tipW - 2) : 0;
+  const tipY = hovered ? (y(hovered.count) - tipH - 12 < 2 ? y(hovered.count) + 12 : y(hovered.count) - tipH - 12) : 0;
+
   return (
-    <svg width={W} height={H} className="ua-trend" role="img" aria-label="Activity trend">
+    <svg
+      width={W}
+      height={H}
+      className="ua-trend"
+      role="img"
+      aria-label="Activity trend"
+      onMouseMove={handleMove}
+      onMouseLeave={() => setHoverIndex(null)}
+    >
       {ticks.map((t) => (
         <g key={t}>
           <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} className="ua-grid" />
@@ -127,13 +147,30 @@ function TrendChart({ trend, width }) {
       {area && <path d={area} className="ua-area" />}
       <polyline points={points} className="ua-line" />
       {trend.length <= 45 && trend.map((t, i) => (
-        <circle key={t.date} cx={x(i)} cy={y(t.count)} r="2.6" className="ua-dot">
-          <title>{`${formatShortDate(t.date)}: ${fmt(t.count)}`}</title>
-        </circle>
+        <circle key={t.date} cx={x(i)} cy={y(t.count)} r="2.6" className="ua-dot" />
       ))}
       {trend.map((t, i) => (i % labelStep === 0 ? (
-        <text key={t.date} x={x(i)} y={H - 6} textAnchor="middle" className="ua-axis">{formatShortDate(t.date)}</text>
+        <text
+          key={t.date}
+          x={x(i)}
+          y={H - 6}
+          textAnchor={i === trend.length - 1 && trend.length > 1 ? 'end' : 'middle'}
+          className="ua-axis"
+        >
+          {formatShortDate(t.date)}
+        </text>
       ) : null))}
+      {hovered && (
+        <g className="ua-tip" pointerEvents="none">
+          <line x1={x(hoverIndex)} x2={x(hoverIndex)} y1={pad.t} y2={y(0)} className="ua-tip-guide" />
+          <circle cx={x(hoverIndex)} cy={y(hovered.count)} r="5" className="ua-tip-dot" />
+          <rect x={tipX} y={tipY} width={tipW} height={tipH} rx="6" className="ua-tip-bg" />
+          <text x={tipX + 10} y={tipY + 16} className="ua-tip-date">{formatLongDate(hovered.date)}</text>
+          <text x={tipX + 10} y={tipY + 32} className="ua-tip-val">
+            {fmt(hovered.count)} {hovered.count === 1 ? 'activity' : 'activities'}
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
@@ -143,9 +180,9 @@ const formatHour = (hour) => {
   return `${hour % 12 === 0 ? 12 : hour % 12} ${suffix}`;
 };
 
-function HourChart({ buckets, width }) {
+function HourChart({ buckets, width, height = CHART_HEIGHT }) {
   const W = width;
-  const H = CHART_HEIGHT;
+  const H = height;
   const labelEvery = W < 300 ? 6 : 3;
   const pad = { l: 30, r: 6, t: 10, b: 24 };
   const max = Math.max(...buckets.map((b) => b.count), 1);
@@ -221,6 +258,43 @@ function Donut({ segments, total }) {
   );
 }
 
+const formatLongDate = (key) => {
+  const d = new Date(`${key}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? key : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+// With a mouse, clicks on these keep their own meaning (tooltips / hover) and do not open the detail modal.
+// On touch screens every tap on a chart card opens it.
+const DETAIL_IGNORE_SELECTOR = '.ua-dot, .ua-bar, .ua-donut circle[stroke], .ua-route-row, .ua-legend';
+
+function DetailModal({ title, subtitle, onClose, children }) {
+  useEffect(() => {
+    const onKey = (event) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
+
+  return (
+    <div className="ua-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="ua-modal" role="dialog" aria-modal="true" aria-label={title}>
+        <header className="ua-modal-head">
+          <div>
+            <h2>{title}</h2>
+            {subtitle && <p>{subtitle}</p>}
+          </div>
+          <button type="button" className="ua-modal-close" onClick={onClose} aria-label="Close">×</button>
+        </header>
+        <div className="ua-modal-body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function UserAnalyticsPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -254,11 +328,17 @@ export default function UserAnalyticsPage() {
   const [result, setResult] = useState({ key: '', rows: [], truncated: false, error: '' });
   const [progress, setProgress] = useState({ key: '', count: 0 });
 
-  const selectedUser = useMemo(
-    () => users.find((u) => String(u.user_reg_id) === String(selectedUserRegId)) || null,
-    [users, selectedUserRegId],
-  );
-  const selectedUserLabel = selectedUser ? (selectedUser.name || selectedUser.email || selectedUser.mobile_no || '--') : '--';
+  // '' means all users in the trust. Rows carry their own user id, so resolve labels per row.
+  const userLabelById = useMemo(() => {
+    const map = new Map();
+    users.forEach((u) => map.set(String(u.user_reg_id), u.name || u.email || u.mobile_no || '--'));
+    return map;
+  }, [users]);
+  const userLabelForRow = (row) => {
+    const id = row.user_reg_id ?? row.user_id;
+    if (hasValue(id) && userLabelById.has(String(id))) return userLabelById.get(String(id));
+    return row.user_name || row.name || (selectedUserRegId ? userLabelById.get(String(selectedUserRegId)) : '') || '--';
+  };
 
   // Jump-to-top button (shown on mobile only via CSS) once the page is scrolled down
   const [showTop, setShowTop] = useState(false);
@@ -269,6 +349,13 @@ export default function UserAnalyticsPage() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Detail modal for the chart cards: 'trend' | 'routes' | 'modules' | 'hours' | null
+  const [detail, setDetail] = useState(null);
+  // Activity list can be collapsed on mobile (the toggle is hidden on desktop)
+  const [activityOpen, setActivityOpen] = useState(true);
+  const [kpisOpen, setKpisOpen] = useState(true);
+  const closeDetail = useCallback(() => setDetail(null), []);
 
   // Redirect safety (same as TrusteesPage)
   useEffect(() => {
@@ -290,7 +377,7 @@ export default function UserAnalyticsPage() {
   }, [trustId]);
 
   // Whole activity history for trust + user, fetched once per selection
-  const requestKey = trustId && selectedUserRegId ? `${trustId}|${selectedUserRegId}` : '';
+  const requestKey = trustId ? `${trustId}|${selectedUserRegId || 'all'}` : '';
   const loading = Boolean(requestKey) && result.key !== requestKey;
   const settled = Boolean(requestKey) && result.key === requestKey;
   const allRows = useMemo(() => (settled ? result.rows : []), [settled, result.rows]);
@@ -299,16 +386,16 @@ export default function UserAnalyticsPage() {
   const loadedCount = progress.key === requestKey ? progress.count : 0;
 
   useEffect(() => {
-    if (!trustId || !selectedUserRegId) return undefined;
+    if (!trustId) return undefined;
     const controller = new AbortController();
-    const key = `${trustId}|${selectedUserRegId}`;
+    const key = `${trustId}|${selectedUserRegId || 'all'}`;
 
     (async () => {
       let next;
       try {
         const { rows, truncated: wasTruncated } = await fetchAllUserPanelActivity({
           trustId,
-          userRegId: selectedUserRegId,
+          userRegId: selectedUserRegId || undefined,
           signal: controller.signal,
           onProgress: (count) => {
             if (!controller.signal.aborted) setProgress({ key, count });
@@ -386,6 +473,8 @@ export default function UserAnalyticsPage() {
       routes,
       modules,
       moduleTotal: moduleCounts.reduce((s, m) => s + m.count, 0),
+      allRoutes: countBy(filteredRows, (r) => r.route),
+      allModules: moduleCounts,
     };
   }, [filteredRows]);
 
@@ -443,8 +532,7 @@ export default function UserAnalyticsPage() {
   if (!trustId) return null;
 
   const filtersActive = Boolean(rangePreset !== DEFAULT_RANGE || moduleFilter);
-  const canView = Boolean(selectedUserRegId);
-  const ready = canView && settled && !error;
+  const ready = settled && !error;
   const columnCount = 2 +[showPageName, showRoute, showModule].filter(Boolean).length;
 
   const kpis = [
@@ -462,15 +550,137 @@ export default function UserAnalyticsPage() {
 
   const maxRoute = analytics.routes[0]?.count || 1;
   const emptyChart = (message) => <div className="ua-empty">{message}</div>;
-  const noUserMessage = 'Select a user to view analytics.';
   const chartEmpty = (field) => {
-    if (!canView) return noUserMessage;
     if (loading) return 'Loading…';
     if (error) return 'Unavailable';
     if (!allRows.length) return 'No activity found.';
     if (!allRows.some((r) => hasValue(r[field]))) return `Not included in the RPC response (${field}).`;
     return 'No data for the selected filters.';
   };
+
+  // Heading / empty space of a chart card opens its detail modal (any tap on touch screens)
+  const openProps = (kind) => ({
+    tabIndex: 0,
+    'aria-haspopup': 'dialog',
+    onClick: (event) => {
+      if (!ready) return;
+      if (window.matchMedia('(hover: hover)').matches && event.target.closest(DETAIL_IGNORE_SELECTOR)) return;
+      setDetail(kind);
+    },
+    onKeyDown: (event) => {
+      if (event.key !== 'Enter' || event.target !== event.currentTarget) return;
+      if (ready) setDetail(kind);
+    },
+  });
+  const moreHint = <span className="ua-more">View details ›</span>;
+
+  const rangeText = formatRangeLabel(fromDate, toDate);
+  const userText = selectedUserRegId ? (userLabelById.get(String(selectedUserRegId)) || 'Selected user') : 'All users';
+  const detailSubtitle = `${userText} · ${rangeText}${moduleFilter ? ` · ${moduleFilter.split(':').slice(1).join(':')}` : ''}`;
+
+  const share = (count, total) => toPercent(count, total);
+  const peakDay = analytics.trend.reduce((best, d) => (d.count > (best?.count ?? -1) ? d : best), null);
+  const peakHour = activityByHour.reduce((best, h) => (h.count > (best?.count ?? -1) ? h : best), null);
+  const statRow = (items) => (
+    <div className="ua-modal-stats">
+      {items.map((item) => (
+        <div key={item.label} className="ua-modal-stat">
+          <span>{item.label}</span>
+          <b>{item.value}</b>
+        </div>
+      ))}
+    </div>
+  );
+
+  let detailView = null;
+  if (detail === 'trend') {
+    detailView = (
+      <DetailModal title="Activity Trend" subtitle={detailSubtitle} onClose={closeDetail}>
+        {statRow([
+          { label: 'Total activities', value: fmt(analytics.total) },
+          { label: 'Days in range', value: fmt(analytics.trend.length) },
+          { label: 'Daily average', value: (analytics.trend.length ? analytics.total / analytics.trend.length : 0).toFixed(1) },
+          { label: 'Busiest day', value: peakDay ? `${formatLongDate(peakDay.date)} (${fmt(peakDay.count)})` : '--' },
+        ])}
+        <ResponsiveChart>{(w) => <TrendChart trend={analytics.trend} width={w} height={320} />}</ResponsiveChart>
+        <table className="ua-table ua-modal-table">
+          <thead><tr><th>Date</th><th>Activities</th><th>Share</th></tr></thead>
+          <tbody>
+            {[...analytics.trend].reverse().map((d) => (
+              <tr key={d.date}>
+                <td>{formatLongDate(d.date)}</td>
+                <td>{fmt(d.count)}</td>
+                <td>{share(d.count, analytics.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </DetailModal>
+    );
+  } else if (detail === 'routes') {
+    const topCount = analytics.allRoutes[0]?.count || 1;
+    detailView = (
+      <DetailModal title="Most Visited Routes" subtitle={detailSubtitle} onClose={closeDetail}>
+        <table className="ua-table ua-modal-table">
+          <thead><tr><th>#</th><th>Route</th><th>Activities</th><th>Share</th><th aria-label="Bar" /></tr></thead>
+          <tbody>
+            {analytics.allRoutes.map((r, i) => (
+              <tr key={r.key}>
+                <td>{i + 1}</td>
+                <td className="ua-modal-route">{r.key}</td>
+                <td>{fmt(r.count)}</td>
+                <td>{share(r.count, analytics.total)}</td>
+                <td className="ua-modal-bar"><span className="ua-route-track"><i style={{ width: `${(r.count / topCount) * 100}%` }} /></span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </DetailModal>
+    );
+  } else if (detail === 'modules') {
+    const colorFor = (key) => analytics.modules.find((m) => m.key === key)?.color || '#9CA3AF';
+    detailView = (
+      <DetailModal title="Top Modules" subtitle={detailSubtitle} onClose={closeDetail}>
+        <div className="ua-modal-split">
+          <div className="ua-modal-donut"><Donut segments={analytics.modules} total={analytics.moduleTotal} /></div>
+          <table className="ua-table ua-modal-table">
+            <thead><tr><th>Module</th><th>Activities</th><th>Share</th></tr></thead>
+            <tbody>
+              {analytics.allModules.map((m) => (
+                <tr key={m.key}>
+                  <td><i className="ua-modal-dot" style={{ background: colorFor(m.key) }} />{m.key}</td>
+                  <td>{fmt(m.count)}</td>
+                  <td>{share(m.count, analytics.moduleTotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </DetailModal>
+    );
+  } else if (detail === 'hours') {
+    detailView = (
+      <DetailModal title="Activity by Hour" subtitle={detailSubtitle} onClose={closeDetail}>
+        {statRow([
+          { label: 'Total activities', value: fmt(analytics.total) },
+          { label: 'Busiest hour', value: peakHour && peakHour.count ? `${formatHour(peakHour.hour)} (${fmt(peakHour.count)})` : '--' },
+        ])}
+        <ResponsiveChart>{(w) => <HourChart buckets={activityByHour} width={w} height={320} />}</ResponsiveChart>
+        <table className="ua-table ua-modal-table">
+          <thead><tr><th>Hour</th><th>Activities</th><th>Share</th></tr></thead>
+          <tbody>
+            {activityByHour.filter((h) => h.count > 0).map((h) => (
+              <tr key={h.hour}>
+                <td>{formatHour(h.hour)} – {formatHour((h.hour + 1) % 24)}</td>
+                <td>{fmt(h.count)}</td>
+                <td>{share(h.count, analytics.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </DetailModal>
+    );
+  }
 
   return (
     <div className="simple-root">
@@ -488,7 +698,7 @@ export default function UserAnalyticsPage() {
             <label className="ua-field ua-field-user">
               <span>User</span>
               <select value={selectedUserRegId} onChange={handleUserChange} disabled={usersLoading}>
-                <option value="">{usersLoading ? 'Loading users…' : 'Select a user'}</option>
+                <option value="">All users</option>
                 {users.map((u) => (
                   <option key={u.user_reg_id} value={u.user_reg_id}>
                     {u.name || u.email || u.mobile_no || u.user_reg_id}
@@ -579,7 +789,17 @@ export default function UserAnalyticsPage() {
             </div>
           )}
 
-          <div className={`ua-kpis ${loading ? 'is-loading' : ''}`} aria-busy={loading}>
+          <button
+            type="button"
+            className="ua-kpi-toggle"
+            aria-expanded={kpisOpen}
+            onClick={() => setKpisOpen((open) => !open)}
+          >
+            {kpisOpen ? 'Hide summary cards' : 'Show summary cards'}
+            <span aria-hidden="true">{kpisOpen ? '▲' : '▼'}</span>
+          </button>
+
+          <div className={`ua-kpis ${loading ? 'is-loading' : ''} ${kpisOpen ? '' : 'is-collapsed'}`} aria-busy={loading}>
             {kpis.map((k) => (
               <div key={k.label} className="ua-card ua-kpi">
                 <span className={`ua-kpi-icon ua-${k.tone}`}>{k.icon}</span>
@@ -593,15 +813,15 @@ export default function UserAnalyticsPage() {
           </div>
 
           <div className={`ua-charts ${loading ? 'is-loading' : ''}`}>
-            <section className="ua-card ua-chart-trend">
-              <h3>Activity Trend</h3>
+            <section className="ua-card ua-chart-trend ua-clickable" {...openProps('trend')}>
+              <h3>Activity Trend{moreHint}</h3>
               {ready && analytics.trend.length > 0
                 ? <ResponsiveChart>{(w) => <TrendChart trend={analytics.trend} width={w} />}</ResponsiveChart>
                 : emptyChart(chartEmpty('created_at'))}
             </section>
 
-            <section className="ua-card ua-chart-routes">
-              <h3>Most Visited Routes</h3>
+            <section className="ua-card ua-chart-routes ua-clickable" {...openProps('routes')}>
+              <h3>Most Visited Routes{moreHint}</h3>
               {ready && analytics.routes.length > 0 ? analytics.routes.map((r) => (
                 <div key={r.key} className="ua-route-row">
                   <span className="ua-route-name" title={r.key}>{r.key}</span>
@@ -611,8 +831,8 @@ export default function UserAnalyticsPage() {
               )) : emptyChart(chartEmpty('route'))}
             </section>
 
-            <section className="ua-card ua-chart-modules">
-              <h3>Top Modules</h3>
+            <section className="ua-card ua-chart-modules ua-clickable" {...openProps('modules')}>
+              <h3>Top Modules{moreHint}</h3>
               {ready && analytics.modules.length > 0 ? (
                 <div className="ua-donut-wrap">
                   <Donut segments={analytics.modules} total={analytics.moduleTotal} />
@@ -629,8 +849,8 @@ export default function UserAnalyticsPage() {
               ) : emptyChart(chartEmpty('module'))}
             </section>
 
-            <section className="ua-card ua-chart-hours">
-              <h3>Activity by Hour</h3>
+            <section className="ua-card ua-chart-hours ua-clickable" {...openProps('hours')}>
+              <h3>Activity by Hour{moreHint}</h3>
               {!ready
                 ? emptyChart(chartEmpty('created_at'))
                 : (filteredRows.length > 0
@@ -640,8 +860,19 @@ export default function UserAnalyticsPage() {
           </div>
 
           <section className={`ua-card ua-table-card ${loading ? 'is-loading' : ''}`} aria-busy={loading}>
-            <h3>Recent User Panel Activity</h3>
-            <div className="ua-table-wrap">
+            <div className="ua-table-head">
+              <h3>Recent User Panel Activity</h3>
+              <button
+                type="button"
+                className="ua-collapse-btn"
+                aria-expanded={activityOpen}
+                onClick={() => setActivityOpen((open) => !open)}
+              >
+                {activityOpen ? 'Hide' : 'Show'}
+                <span aria-hidden="true">{activityOpen ? '▲' : '▼'}</span>
+              </button>
+            </div>
+            <div className={`ua-table-wrap ${activityOpen ? '' : 'is-collapsed'}`}>
               <table className="ua-table">
                 <thead>
                   <tr>
@@ -656,22 +887,19 @@ export default function UserAnalyticsPage() {
                   {ready && visibleRows.map((r, i) => (
                     <tr key={r.id ?? `${start}-${i}`}>
                       <td data-label="Time" className="ua-td-time">{formatTimestamp(r.created_at)}</td>
-                      <td data-label="User">{selectedUserLabel}</td>
+                      <td data-label="User">{userLabelForRow(r)}</td>
                       {showPageName && <td data-label="Page">{r.page_name ?? '--'}</td>}
                       {showRoute && <td data-label="Route">{r.route ?? '--'}</td>}
                       {showModule && <td data-label="Module">{r.module ?? '--'}</td>}
                     </tr>
                   ))}
-                  {!canView && (
-                    <tr><td colSpan={columnCount} className="ua-empty">{noUserMessage}</td></tr>
-                  )}
-                  {canView && loading && (
+                  {loading && (
                     <tr><td colSpan={columnCount} className="ua-empty">Loading activity analytics…</td></tr>
                   )}
                   {ready && totalRows === 0 && (
                     <tr>
                       <td colSpan={columnCount} className="ua-empty">
-                        {allRows.length === 0 ? 'No activity found for this user.' : 'No activity matches the selected filters.'}
+                        {allRows.length === 0 ? 'No activity found.' : 'No activity matches the selected filters.'}
                       </td>
                     </tr>
                   )}
@@ -679,7 +907,7 @@ export default function UserAnalyticsPage() {
               </table>
             </div>
 
-            <div className="ua-pager">
+            <div className={`ua-pager ${activityOpen ? '' : 'is-collapsed'}`}>
               <label className="ua-per-page">
                 Show
                 <select value={pageSize} onChange={handlePageSize}>
@@ -715,6 +943,8 @@ export default function UserAnalyticsPage() {
       >
         ↑
       </button>
+
+      {detailView}
     </div>
   );
 }
