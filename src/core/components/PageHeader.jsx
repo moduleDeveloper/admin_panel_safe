@@ -1,4 +1,5 @@
 import './PageHeader.css';
+import ThemeToggle from './ThemeToggle';
 
 export default function PageHeader({ title, subtitle, onBack, right }) {
   return (
@@ -12,6 +13,7 @@ export default function PageHeader({ title, subtitle, onBack, right }) {
       </div>
       <div className="ph-right">
         {right}
+        <ThemeToggle />
       </div>
     </div>
   );

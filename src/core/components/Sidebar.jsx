@@ -8,6 +8,7 @@ import {
   ADMIN_NAME_SESSION_KEY,
   ADMIN_MOBILE_SESSION_KEY,
 } from '../../features/auth/services/authService';
+import { NAV_SECTION_PATHS, sectionKeyFromPath } from '../utils/navSections';
 
 const SUPERUSER_SESSION_KEY = ADMIN_SUPERUSER_SESSION_KEY;
 
@@ -29,7 +30,7 @@ const navItems = [
   {
     id: 'nav-menu',
     label: 'Menu',
-    route: '/dashboard',
+    route: NAV_SECTION_PATHS['menu'],
     navKey: 'menu',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -55,7 +56,7 @@ const navItems = [
   {
     id: 'nav-company-details',
     label: 'Company Details',
-    route: '/dashboard',
+    route: NAV_SECTION_PATHS['company-details'],
     navKey: 'company-details',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -68,7 +69,7 @@ const navItems = [
   {
     id: 'nav-app-design',
     label: 'App Design',
-    route: '/dashboard',
+    route: NAV_SECTION_PATHS['app-design'],
     navKey: 'app-design',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -81,7 +82,7 @@ const navItems = [
   {
     id: 'nav-extra',
     label: 'Extra',
-    route: '/dashboard',
+    route: NAV_SECTION_PATHS['extra'],
     navKey: 'extra',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -135,7 +136,7 @@ export default function Sidebar({ trustName = 'Trust', onDashboard, onLogout }) 
   const navigate = useNavigate();
   const location = useLocation();
   const { userName = 'Admin', trust = null, superuserId = null } = location.state || {};
-  const currentSidebarNavKey = location.state?.sidebarNavKey || 'dashboard';
+  const currentSidebarNavKey = sectionKeyFromPath(location.pathname) || location.state?.sidebarNavKey || 'dashboard';
   const trusteesSearchParams = new URLSearchParams(location.search || '');
   const trusteesViewFromQuery = trusteesSearchParams.get('view');
   const currentTrusteesView =
