@@ -6,7 +6,7 @@ import { warmupTrustData } from '../../../core/services/warmupService';
 import { fetchNoticeboardByTrust } from '../../extra/services/noticeboardService';
 import { fetchEventsByTrust } from '../../extra/services/eventsService';
 import { fetchNotificationsByTrustId } from '../../../core/services/notificationsService';
-import { fetchDashboardByTrustId } from '../services/dashboardService';
+import { fetchDashboardByTrustId, fetchMemberCreationStats } from '../services/dashboardService';
 import Sidebar from '../../../core/components/Sidebar';
 
 // ── Export reusable icon renderer component ───────────────────────────────────
@@ -192,6 +192,38 @@ const MODULE_CARDS = [
     ),
   },
   {
+    id: 'card-feature-control',
+    label: 'Feature Control',
+    description: 'Manage feature access & visibility',
+    route: '/feature-control',
+    temporarilyDeactivated: true,
+    deactivationText: 'Temporarily Deactivated',
+    gradient: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="4" width="18" height="16" rx="3" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.18)"/>
+        <path d="M8 9h8M8 12h5M8 15h3" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+        <circle cx="17.5" cy="15" r="2.2" stroke="white" strokeWidth="1.8"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'card-sub-feature-control',
+    label: 'Sub Feature Control',
+    description: 'Manage sub feature labels and visibility',
+    route: '/sub-feature-control',
+    temporarilyDeactivated: true,
+    deactivationText: 'Temporarily Deactivated',
+    gradient: 'linear-gradient(135deg, #0EA5E9 0%, #1D4ED8 100%)',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="4" width="18" height="16" rx="3" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.18)"/>
+        <path d="M8 9h8M8 12h8M8 15h5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+        <circle cx="17.5" cy="15" r="1.6" fill="white"/>
+      </svg>
+    ),
+  },
+  {
     id: 'card-features-2-o',
     label: 'Features2.O',
     description: 'Merged access for feature and sub feature controls',
@@ -233,12 +265,25 @@ const MODULE_CARDS = [
       </svg>
     ),
   },
+  {
+    id: 'card-trust-insights',
+    label: 'Trust Insights',
+    description: 'Total trusts created and recent trust activity',
+    route: '/trust-insights',
+    gradient: 'linear-gradient(135deg, #7C3AED 0%, #2563EB 100%)',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <rect x="3.5" y="4" width="17" height="16" rx="2.6" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.16)" />
+        <path d="M8 16v-3M12 16V9M16 16v-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ];
 
-const APP_DESIGN_CARD_IDS = new Set(['card-theme', 'card-features-2-o']);
+const APP_DESIGN_CARD_IDS = new Set(['card-theme', 'card-feature-control', 'card-sub-feature-control', 'card-features-2-o']);
 const COMPANY_DETAILS_CARD_IDS = new Set(['card-trust', 'card-social-media-account-details', 'card-create-video', 'card-bank-details']);
 const DASHBOARD_CARD_IDS = new Set();
-const EXTRA_CARD_IDS = new Set(['card-linked-trusts', 'card-nominations', 'card-bulk-members-upload']);
+const EXTRA_CARD_IDS = new Set(['card-linked-trusts', 'card-nominations', 'card-bulk-members-upload', 'card-trust-insights']);
 const MENU_MODULE_CARDS = [
   {
     id: 'menu-card-my-family',
@@ -252,6 +297,20 @@ const MENU_MODULE_CARDS = [
         <circle cx="16.5" cy="9.5" r="2" stroke="white" strokeWidth="1.8" />
         <path d="M4.5 18c0-2.6 2.3-4.6 5.2-4.6s5.2 2 5.2 4.6" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
         <path d="M14.4 18c.36-1.46 1.5-2.5 3.2-2.8" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: 'menu-card-user-analytics',
+    label: 'User Analytics',
+    description: 'View user activity and usage analytics',
+    route: '/user-analytics',
+    gradient: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <circle cx="9" cy="8.5" r="2.6" stroke="white" strokeWidth="1.8" />
+        <path d="M4 18c0-2.6 2.2-4.6 5-4.6s5 2 5 4.6" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M15.5 17v-3M18 17v-6M20.5 17v-4" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -272,6 +331,38 @@ const initials = (name = '') =>
 const todayStr = new Date().toLocaleDateString('en-IN', {
   weekday: 'long', day: 'numeric', month: 'short', year: 'numeric',
 });
+
+// ── Member Creation Insights helpers (local calendar dates, 'YYYY-MM-DD') ────
+const MEMBER_DATE_PRESETS = [
+  { key: 'today', label: 'Today' },
+  { key: 'last7days', label: 'Last 7 Days' },
+  { key: 'last30days', label: 'Last 30 Days' },
+  { key: 'custom', label: 'Custom Range' },
+];
+
+const toLocalDateInput = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const getPresetRange = (preset) => {
+  const today = new Date();
+  const start = new Date(today);
+  if (preset === 'last7days') start.setDate(start.getDate() - 6);
+  if (preset === 'last30days') start.setDate(start.getDate() - 29);
+  return { from: toLocalDateInput(start), to: toLocalDateInput(today) };
+};
+
+const formatDateTime = (input) => {
+  if (!input) return '--';
+  const parsed = new Date(input);
+  if (Number.isNaN(parsed.getTime())) return '--';
+  return parsed.toLocaleString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+};
 
 // �� Feature card icon renderer ������������������������������������������������
 // Priority: route-based SVG ? name-based SVG ? generic grid
@@ -523,13 +614,6 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [liveNotices, setLiveNotices] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
-  const [dashboardStats, setDashboardStats] = useState({
-    totalMembers: 0,
-    appDownloads: 0,
-    liveEvents: 0,
-    panelUsers: 0,
-    liveAppUsers: 0,
-  });
   const [communityStats, setCommunityStats] = useState({
     postsOnSocialMedia: 0,
     galleryUploads: 0,
@@ -545,6 +629,18 @@ export default function Dashboard() {
   const [memberGrowthSeries, setMemberGrowthSeries] = useState([0, 0, 0, 0, 0, 0]);
   const [activeUsersSeries, setActiveUsersSeries] = useState([0, 0, 0, 0, 0, 0]);
   const [liveFeed, setLiveFeed] = useState([]);
+
+  // Member creation insights for Members associated with the selected trust
+  const [memberDatePreset, setMemberDatePreset] = useState('last7days');
+  const [memberFromDate, setMemberFromDate] = useState(() => getPresetRange('last7days').from);
+  const [memberToDate, setMemberToDate] = useState(() => getPresetRange('last7days').to);
+  // Last settled response, tagged with the range it was fetched for
+  const [memberCreationResult, setMemberCreationResult] = useState({ rangeKey: '', stats: null, error: '' });
+  const memberRangeInvalid = !memberFromDate || !memberToDate || memberFromDate > memberToDate;
+  const memberRangeKey = `${trustId}|${memberFromDate}|${memberToDate}`;
+  // Never show another trust's numbers while a new trust is loading
+  const memberCreationStats = memberCreationResult.rangeKey.startsWith(`${trustId}|`) ? memberCreationResult.stats : null;
+  const memberCreationError = memberCreationResult.rangeKey === memberRangeKey ? memberCreationResult.error : '';
 
   const userInitials = initials(userName);
   const currentSidebarNavKey = location.state?.sidebarNavKey || 'dashboard';
@@ -580,13 +676,6 @@ export default function Dashboard() {
       return label.includes(query) || description.includes(query);
     });
   }, [searchTerm, scopedModules]);
-  const dashboardSummaryCards = [
-    { label: 'Total Members', value: String(dashboardStats.totalMembers || 0), note: `${dashboardStats.totalMembers || 0} registered`, tone: 'violet' },
-    { label: 'App Downloads', value: String(dashboardStats.appDownloads || 0), note: 'From panel data', tone: 'green' },
-    { label: 'Live Events', value: String(dashboardStats.liveEvents || 0), note: 'Upcoming / active', tone: 'orange' },
-    { label: 'Panel Users', value: String(dashboardStats.panelUsers || 0), note: 'Active on panel', tone: 'pink' },
-    { label: 'Live App Users', value: String(dashboardStats.liveAppUsers || 0), note: 'Estimated', tone: 'cyan' },
-  ];
   const formatDayMonth = (input) => {
     if (!input) return '--';
     const parsed = new Date(input);
@@ -682,13 +771,6 @@ export default function Dashboard() {
       const notifications = Array.isArray(notificationsRes?.data) ? notificationsRes.data : [];
       const dashboardRow = dashboardRes?.data || null;
 
-      setDashboardStats({
-        totalMembers: Number(dashboardRow?.total_members ?? 0),
-        appDownloads: Number(dashboardRow?.app_downloads ?? 0),
-        liveEvents: Number(dashboardRow?.live_events ?? 0),
-        panelUsers: Number(dashboardRow?.panel_users ?? 0),
-        liveAppUsers: Number(dashboardRow?.live_app_users ?? 0),
-      });
       setGovernanceStats({
         electedMembers: Number(dashboardRow?.elected_members ?? 0),
         committeeMembers: Number(dashboardRow?.committee_members ?? 0),
@@ -738,6 +820,72 @@ export default function Dashboard() {
       cancelled = true;
     };
   }, [trustId]);
+
+  // Member Creation Insights: keyed on trust + date range (string deps → no duplicate fetches)
+  const isOverviewDashboard = currentSidebarNavKey === 'dashboard';
+  const memberCreationLoading = Boolean(trustId) && isOverviewDashboard && !memberRangeInvalid && memberCreationResult.rangeKey !== memberRangeKey;
+  useEffect(() => {
+    if (!trustId || !isOverviewDashboard || memberRangeInvalid) return undefined;
+    let cancelled = false;
+    const rangeKey = `${trustId}|${memberFromDate}|${memberToDate}`;
+
+    (async () => {
+      let result;
+      try {
+        const { data, error } = await fetchMemberCreationStats({ trustId, from: memberFromDate, to: memberToDate, recentLimit: 10 });
+        result = error || !data
+          ? { rangeKey, stats: null, error: error?.message || 'Unable to load member creation stats.' }
+          : { rangeKey, stats: data, error: '' };
+      } catch (err) {
+        result = { rangeKey, stats: null, error: err?.message || 'Unable to load member creation stats.' };
+      }
+      if (!cancelled) setMemberCreationResult(result);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trustId, isOverviewDashboard, memberFromDate, memberToDate, memberRangeInvalid]);
+
+  const handleMemberPresetChange = (preset) => {
+    setMemberDatePreset(preset);
+    if (preset === 'custom') return; // keep the current range as the custom starting point
+    const range = getPresetRange(preset);
+    setMemberFromDate(range.from);
+    setMemberToDate(range.to);
+  };
+
+  const memberCreationCards = [
+    {
+      label: 'Total Members',
+      value: memberCreationStats ? String(memberCreationStats.totalMembers) : '--',
+      note: 'Linked to this trust',
+      tone: 'violet',
+    },
+    {
+      label: 'Created Today',
+      value: memberCreationStats ? String(memberCreationStats.createdToday) : '--',
+      note: 'Since local midnight',
+      tone: 'green',
+    },
+    {
+      label: 'Selected Period',
+      value: memberCreationStats ? String(memberCreationStats.createdInPeriod) : '--',
+      note: memberRangeInvalid ? 'Invalid range' : `${formatDayMonth(`${memberFromDate}T00:00:00`)} – ${formatDayMonth(`${memberToDate}T00:00:00`)}`,
+      tone: 'orange',
+    },
+    {
+      label: 'Last Member Created',
+      value: memberCreationStats?.lastCreatedAt ? formatDateTime(memberCreationStats.lastCreatedAt) : '--',
+      note: !memberCreationStats
+        ? ''
+        : (!memberCreationStats.lastMember
+          ? 'No members yet'
+          : (memberCreationStats.lastMember.name || memberCreationStats.lastMember.mobile || 'Name not set')),
+      tone: 'cyan',
+      compact: true,
+    },
+  ];
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -888,15 +1036,100 @@ export default function Dashboard() {
                 <p>Key highlights for {activeTrust?.name || 'your trust'}</p>
               </div>
 
-              <div className="dp-kpis">
-                {dashboardSummaryCards.map((item) => (
-                  <article key={item.label} className={`dp-kpi dp-${item.tone}`}>
-                    <div className="dp-kpi-title">{item.label}</div>
-                    <div className="dp-kpi-value">{item.value}</div>
-                    <div className="dp-kpi-note">{item.note}</div>
-                  </article>
-                ))}
-              </div>
+              <article className="dp-card dp-mci">
+                <div className="dp-card-head dp-mci-head">
+                  <div>
+                    <h3>Member Creation Insights</h3>
+                    <span>Members of {activeTrust?.name || 'this trust'} · based on creation date</span>
+                  </div>
+                  <div className="dp-mci-presets" role="group" aria-label="Member creation date range">
+                    {MEMBER_DATE_PRESETS.map((preset) => (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        className={memberDatePreset === preset.key ? 'is-active' : ''}
+                        aria-pressed={memberDatePreset === preset.key}
+                        onClick={() => handleMemberPresetChange(preset.key)}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {memberDatePreset === 'custom' && (
+                  <div className="dp-mci-range">
+                    <label>
+                      <span>From</span>
+                      <input
+                        type="date"
+                        value={memberFromDate}
+                        max={memberToDate || undefined}
+                        onChange={(event) => setMemberFromDate(event.target.value)}
+                      />
+                    </label>
+                    <label>
+                      <span>To</span>
+                      <input
+                        type="date"
+                        value={memberToDate}
+                        min={memberFromDate || undefined}
+                        onChange={(event) => setMemberToDate(event.target.value)}
+                      />
+                    </label>
+                    {memberRangeInvalid && (
+                      <div className="dp-mci-invalid">Please choose a valid range — From must be on or before To.</div>
+                    )}
+                  </div>
+                )}
+
+                {memberCreationError && !memberCreationLoading && (
+                  <div className="dp-mci-error">Couldn&apos;t load member creation stats: {memberCreationError}</div>
+                )}
+
+                <div className={`dp-kpis dp-mci-kpis ${memberCreationLoading ? 'is-loading' : ''}`} aria-busy={memberCreationLoading}>
+                  {memberCreationCards.map((item) => (
+                    <div key={item.label} className={`dp-kpi dp-${item.tone}`}>
+                      <div className="dp-kpi-title">{item.label}</div>
+                      <div className={`dp-kpi-value ${item.compact ? 'dp-kpi-value-sm' : ''}`}>
+                        {memberCreationLoading && !memberCreationStats ? '…' : item.value}
+                      </div>
+                      <div className="dp-kpi-note">{item.note}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="dp-mci-recent">
+                  <div className="dp-mci-recent-title">
+                    Recent Members {memberCreationLoading && <em>Loading…</em>}
+                  </div>
+                  {!memberCreationLoading && memberCreationStats && memberCreationStats.recentMembers.length === 0 && (
+                    <div className="dp-empty-note">No Members were created in the selected period.</div>
+                  )}
+                  {memberCreationStats && memberCreationStats.recentMembers.length > 0 && (
+                    <div className="dp-mci-table-wrap">
+                      <table className="dp-mci-table">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Mobile</th>
+                            <th>Created At</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {memberCreationStats.recentMembers.map((member) => (
+                            <tr key={member.members_id ?? `${member.mobile}-${member.created_at}`}>
+                              <td>{member.name || '—'}</td>
+                              <td>{member.mobile || '—'}</td>
+                              <td>{formatDateTime(member.created_at)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </article>
 
               <div className="dp-grid">
                 <article className="dp-card">
@@ -966,6 +1199,7 @@ export default function Dashboard() {
               <div className="dp-charts">
                 <article className="dp-chart-card">
                   <h3>Member Growth (Last 6 Months)</h3>
+                  <p className="dp-chart-note">Illustrative only — shows the current trust total, not historical growth.</p>
                   <div className="dp-line-chart">
                     <svg className="dp-line-svg" viewBox="0 0 520 180" preserveAspectRatio="none">
                       <defs>
@@ -1081,12 +1315,13 @@ export default function Dashboard() {
                 <button
                   key={card.id}
                   id={card.id}
-                  className="module-card"
+                  className={`module-card ${card.temporarilyDeactivated ? 'is-deactivated' : ''}`}
                   style={{
                     background: card.gradient,
                     animationDelay: `${i * 0.08}s`,
                   }}
                   onClick={() => {
+                    if (card.temporarilyDeactivated) return;
                     const nextTrusteesView = card.id === 'card-logo' ? 'logo' : 'default';
                     const targetRoute =
                       card.route === '/trustees'
@@ -1108,8 +1343,12 @@ export default function Dashboard() {
                     });
                   }}
                   title={card.label}
+                  aria-disabled={card.temporarilyDeactivated ? 'true' : 'false'}
                 >
                   <div className="module-card-shine" />
+                  {card.temporarilyDeactivated && (
+                    <div className="module-card-deactivated-text">{card.deactivationText || 'Temporarily Deactivated'}</div>
+                  )}
                   <div className="module-icon-wrap">
                     {card.icon}
                   </div>
