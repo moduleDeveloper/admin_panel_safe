@@ -2,24 +2,59 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../../../core/components/Sidebar';
 import PageHeader from '../../../core/components/PageHeader';
+import CountryPicker from '../../auth/components/CountryPicker';
+import { DEFAULT_COUNTRY, normalizePhoneInput } from '../../auth/constants/countries';
 import {
   createPanelUser,
   deletePanelUser,
-  fetchFeatureCatalog,
-  fetchUserRolesByUserId,
-  fetchUsersByTrustId,
-  replaceUserRoles,
+  fetchUserManagementData,
+  findCountry,
   updatePanelUser,
+  validateUserForm,
 } from '../services/userManagementService';
 import './UserManagementPage.css';
 
+// mobile_no holds only the local digits; mobile_country is the picker's ISO code.
 const EMPTY_FORM = {
   id: null,
   name: '',
   email: '',
+  mobile_country: DEFAULT_COUNTRY.iso,
   mobile_no: '',
   secret_code: '',
 };
+
+const NO_TOUCHED = { name: false, email: false, mobile_no: false, secret_code: false };
+const ALL_TOUCHED = { name: true, email: true, mobile_no: true, secret_code: true };
+
+function formFromUser(user) {
+  return {
+    id: user.id,
+    name: user.name || '',
+    email: user.email || '',
+    mobile_country: user.mobile_country || DEFAULT_COUNTRY.iso,
+    mobile_no: user.mobile_local || '',
+    secret_code: user.secret_code || '',
+  };
+}
+
+function formatMobile(user) {
+  if (!user.mobile_local) return '';
+  return `${findCountry(user.mobile_country).code} ${user.mobile_local}`;
+}
+
+const PERMISSION_COLUMNS = [
+  { key: 'can_view', label: 'View' },
+  { key: 'can_add', label: 'Add' },
+  { key: 'can_edit', label: 'Edit' },
+  { key: 'can_delete', label: 'Delete' },
+];
+
+const MOBILE_QUERY = '(max-width: 760px)';
+
+function buildSnapshot(form, permissionRows) {
+  return JSON.stringify({ form, permissionRows });
+}
 
 function withImpliedView(row) {
   const canAdd = !!row.can_add;
@@ -81,31 +116,32 @@ export default function UserManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   const [flash, setFlash] = useState(null);
+  // Snapshot of the last loaded/saved editor state, used to detect unsaved changes.
+  const [savedSnapshot, setSavedSnapshot] = useState(null);
+  // Field errors show only after the field is left or a save is attempted.
+  const [touched, setTouched] = useState(NO_TOUCHED);
 
-  const selectExistingUser = useCallback(async (user, featureList = features) => {
-    if (!user?.id) return;
+  const openEditor = useCallback(() => {
     setIsEditorVisible(true);
+    setTouched(NO_TOUCHED);
+    if (typeof window !== 'undefined' && window.matchMedia?.(MOBILE_QUERY).matches) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, []);
+
+  const selectExistingUser = useCallback((user, featureList = features) => {
+    if (!user?.id) return;
+    const nextForm = formFromUser(user);
+    // Roles come embedded in each user from the read action.
+    const nextRows = buildPermissionRows(featureList, user.user_roles || []);
+
+    openEditor();
     setError('');
     setSelectedUserId(user.id);
-    setForm({
-      id: user.id,
-      name: user.name || '',
-      email: user.email || '',
-      mobile_no: user.mobile_no || '',
-      secret_code:
-        user.secret_code === null || user.secret_code === undefined
-          ? ''
-          : String(user.secret_code),
-    });
-
-    const { data, error: roleError } = await fetchUserRolesByUserId(user.id);
-    if (roleError) {
-      setError(roleError.message || 'Unable to load user roles.');
-      setPermissionRows(buildPermissionRows(featureList, []));
-      return;
-    }
-    setPermissionRows(buildPermissionRows(featureList, data || []));
-  }, [features]);
+    setForm(nextForm);
+    setPermissionRows(nextRows);
+    setSavedSnapshot(buildSnapshot(nextForm, nextRows));
+  }, [features, openEditor]);
 
   const loadBaseData = useCallback(async () => {
     if (!trustId) return;
@@ -113,39 +149,28 @@ export default function UserManagementPage() {
     setLoading(true);
     setError('');
 
-    const [usersResult, featuresResult] = await Promise.all([
-      fetchUsersByTrustId(trustId),
-      fetchFeatureCatalog(trustId),
-    ]);
+    const { data, error: loadError } = await fetchUserManagementData(trustId);
 
-    if (usersResult.error) {
-      setError(usersResult.error.message || 'Unable to load users.');
+    if (loadError) {
+      setError(loadError.message || 'Unable to load users.');
       setLoading(false);
       return;
     }
 
-    if (featuresResult.error) {
-      setError(featuresResult.error.message || 'Unable to load features catalog.');
-      setLoading(false);
-      return;
-    }
-
-    const nextUsers = usersResult.data || [];
-    const nextFeatures = featuresResult.data || [];
+    const nextUsers = data?.users || [];
+    const nextFeatures = data?.features || [];
     setUsers(nextUsers);
     setFeatures(nextFeatures);
     setPermissionRows(buildPermissionRows(nextFeatures, []));
 
-    if (nextUsers.length) {
-      await selectExistingUser(nextUsers[0], nextFeatures);
-    } else {
-      setSelectedUserId(null);
-      setForm(EMPTY_FORM);
-      setIsEditorVisible(false);
-    }
+    // Don't auto-open the first user: the admin picks a user or starts a new one explicitly.
+    setSelectedUserId(null);
+    setForm(EMPTY_FORM);
+    setSavedSnapshot(null);
+    setIsEditorVisible(false);
 
     setLoading(false);
-  }, [trustId, selectExistingUser]);
+  }, [trustId]);
 
   useEffect(() => {
     if (!trustId) {
@@ -163,7 +188,8 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     if (!flash) return;
-    const timer = setTimeout(() => setFlash(null), 2400);
+    // Longer messages stay up long enough to read.
+    const timer = setTimeout(() => setFlash(null), Math.max(2400, flash.text.length * 55));
     return () => clearTimeout(timer);
   }, [flash]);
 
@@ -173,7 +199,8 @@ export default function UserManagementPage() {
     return users.filter((item) => {
       const name = String(item.name || '').toLowerCase();
       const mobile = String(item.mobile_no || '').toLowerCase();
-      return name.includes(query) || mobile.includes(query);
+      const email = String(item.email || '').toLowerCase();
+      return name.includes(query) || mobile.includes(query) || email.includes(query);
     });
   }, [users, searchTerm]);
 
@@ -203,12 +230,65 @@ export default function UserManagementPage() {
     };
   }, [permissionRows]);
 
-  function startCreateMode(openEditor = true) {
-    setIsEditorVisible(openEditor);
+  const isDirty = useMemo(
+    () =>
+      isEditorVisible &&
+      savedSnapshot !== null &&
+      buildSnapshot(form, permissionRows) !== savedSnapshot,
+    [isEditorVisible, savedSnapshot, form, permissionRows],
+  );
+
+  const fieldErrors = useMemo(
+    () => validateUserForm(form, users.find((item) => item.id === form.id) || null),
+    [form, users],
+  );
+  const visibleErrors = Object.fromEntries(
+    Object.entries(fieldErrors).filter(([field]) => touched[field]),
+  );
+  const selectedCountry = findCountry(form.mobile_country);
+
+  const selectedUser = useMemo(
+    () => users.find((item) => item.id === selectedUserId) || null,
+    [users, selectedUserId],
+  );
+
+  function confirmDiscard() {
+    if (!isDirty) return true;
+    return window.confirm('You have unsaved changes. Discard them?');
+  }
+
+  function startCreateMode() {
+    const nextRows = buildCreatePermissionRows(features);
+    openEditor();
     setSelectedUserId(null);
     setError('');
     setForm(EMPTY_FORM);
-    setPermissionRows(buildCreatePermissionRows(features));
+    setPermissionRows(nextRows);
+    setSavedSnapshot(buildSnapshot(EMPTY_FORM, nextRows));
+  }
+
+  function closeEditor() {
+    setIsEditorVisible(false);
+    setSelectedUserId(null);
+    setForm(EMPTY_FORM);
+    setSavedSnapshot(null);
+    setError('');
+  }
+
+  function handleNewUserClick() {
+    if (!confirmDiscard()) return;
+    startCreateMode();
+  }
+
+  function handleUserClick(user) {
+    if (user.id === selectedUserId && isEditorVisible) return;
+    if (!confirmDiscard()) return;
+    selectExistingUser(user);
+  }
+
+  function handleBackToList() {
+    if (!confirmDiscard()) return;
+    closeEditor();
   }
 
   function handlePermissionToggle(featureId, key) {
@@ -231,80 +311,107 @@ export default function UserManagementPage() {
     );
   }
 
+  function handleEmailChange(event) {
+    // One address only: spaces, commas and semicolons would start a second one.
+    const email = event.target.value.replace(/[\s,;]/g, '');
+    setForm((prev) => ({ ...prev, email }));
+  }
+
+  // Accepts typed or pasted numbers; a leading "+code" switches the country, extra digits are dropped.
+  function handleMobileChange(event) {
+    const next = normalizePhoneInput(event.target.value, findCountry(form.mobile_country));
+    setForm((prev) => ({ ...prev, mobile_country: next.country.iso, mobile_no: next.phone }));
+  }
+
+  function handleCountryChange(country) {
+    setForm((prev) => ({ ...prev, mobile_country: country.iso, mobile_no: prev.mobile_no.slice(0, country.max) }));
+  }
+
+  function markTouched(field) {
+    setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  }
+
   async function handleSave() {
     if (saving) return;
+    if (Object.keys(fieldErrors).length) {
+      setTouched(ALL_TOUCHED);
+      return;
+    }
     setSaving(true);
     setError('');
 
-    let targetUserId = form.id;
-    let savedUserName = String(form.name || '').trim();
-    let wasCreate = !form.id;
-    let saveError = null;
+    const wasCreate = !form.id;
+    const originalUser = users.find((item) => item.id === form.id) || { id: form.id };
+    const result = wasCreate
+      ? await createPanelUser(trustId, form, permissionRows)
+      : await updatePanelUser(trustId, originalUser, form, permissionRows);
 
-    if (form.id) {
-      const { data, error: updateError } = await updatePanelUser(form.id, form);
-      if (updateError) {
-        saveError = updateError;
-      } else if (data) {
-        setUsers((prev) => prev.map((item) => (item.id === data.id ? data : item)));
-        savedUserName = String(data.name || savedUserName || '').trim();
-      }
-    } else {
-      const { data, error: createError } = await createPanelUser(trustId, form);
-      if (createError) {
-        saveError = createError;
-      } else if (data) {
-        targetUserId = data.id;
-        setUsers((prev) => [data, ...prev]);
-        savedUserName = String(data.name || savedUserName || '').trim();
-      }
-    }
-
-    if (saveError) {
+    const savedUser = result.data;
+    if (!savedUser) {
       setSaving(false);
-      setError(saveError.message || 'Unable to save user.');
+      setError(result.error?.message || 'Unable to save user.');
       return;
     }
 
-    if (targetUserId) {
-      const { error: roleSaveError } = await replaceUserRoles(targetUserId, permissionRows);
-      if (roleSaveError) {
-        setSaving(false);
-        setError(roleSaveError.message || 'User saved but permissions failed to update.');
-        return;
-      }
+    setUsers((prev) =>
+      prev.some((item) => item.id === savedUser.id)
+        ? prev.map((item) => (item.id === savedUser.id ? savedUser : item))
+        : [savedUser, ...prev],
+    );
+
+    // Keep the saved user open, showing exactly what the server stored.
+    const savedForm = formFromUser(savedUser);
+    const savedRows = buildPermissionRows(features, savedUser.user_roles || []);
+    setForm(savedForm);
+    setPermissionRows(savedRows);
+    setSelectedUserId(savedUser.id);
+    setSavedSnapshot(buildSnapshot(savedForm, savedRows));
+    setSaving(false);
+
+    // User was saved but some permission calls failed.
+    if (result.error) {
+      setError(result.error.message);
+      return;
     }
 
-    // Keep saved user in list, but reset editor so next user can be entered quickly.
-    startCreateMode(true);
-    setSaving(false);
-    setFlash({
-      type: 'success',
-      text: `${wasCreate ? 'User created' : 'User updated'}${savedUserName ? `: ${savedUserName}` : ''}.`,
-    });
+    const savedUserName = String(savedUser.name || '').trim();
+
+    const suffix = savedUserName ? `: ${savedUserName}` : '';
+    let text = `${wasCreate ? 'User created' : 'User updated'}${suffix}.`;
+    // A matching mobile/email reuses the registered person; the server then keeps their
+    // registered name, email and secret code instead of what was typed.
+    if (wasCreate && result.meta?.trust_membership_reused) {
+      text = `Already a user of this trust${suffix}. Opened the existing user.`;
+    } else if (wasCreate && result.meta?.user_reg_reused) {
+      text = `Registered user linked${suffix}. Name, email and secret code come from their existing registration.`;
+    }
+    setFlash({ type: 'success', text });
   }
 
   async function handleDelete(user) {
     if (!user?.id) return;
-    const confirmed = window.confirm(`Delete user "${user.name}"?`);
+    const confirmed = window.confirm(
+      `Remove "${user.name}" from this trust?\n\nTheir permissions and login sessions for this trust will be deleted. ` +
+        'If they are not part of any other trust, their registration is deleted too.',
+    );
     if (!confirmed) return;
 
-    const { error: deleteError } = await deletePanelUser(user.id);
+    const { data, error: deleteError } = await deletePanelUser(trustId, user.id);
     if (deleteError) {
       setError(deleteError.message || 'Unable to delete user.');
       return;
     }
 
-    const nextUsers = users.filter((item) => item.id !== user.id);
-    setUsers(nextUsers);
-    if (selectedUserId === user.id) {
-      if (nextUsers.length) {
-        await selectExistingUser(nextUsers[0], features);
-      } else {
-        startCreateMode(false);
-      }
-    }
-    setFlash({ type: 'success', text: 'User deleted successfully.' });
+    setUsers((prev) => prev.filter((item) => item.id !== user.id));
+    if (selectedUserId === user.id) closeEditor();
+
+    const otherTrusts = Number(data?.remaining_trust_links) || 0;
+    setFlash({
+      type: 'success',
+      text: data?.user_reg_deleted || !otherTrusts
+        ? 'User deleted.'
+        : `User removed from this trust. Still linked to ${otherTrusts} other ${otherTrusts === 1 ? 'trust' : 'trusts'}.`,
+    });
   }
 
   if (!trustId) return null;
@@ -346,19 +453,21 @@ export default function UserManagementPage() {
           <div className="um-head">
             <div>
               <h3>Trust Users</h3>
-              <p>{users.length} users | {activePermissionCount} features with active permissions</p>
+              <p>{users.length} {users.length === 1 ? 'user' : 'users'}</p>
             </div>
-            <button type="button" className="um-new-btn" onClick={startCreateMode}>
+            <button type="button" className="um-new-btn" onClick={handleNewUserClick}>
               + New User
             </button>
           </div>
 
-          <div className="um-grid">
+          {error ? <div className="um-error">{error}</div> : null}
+
+          <div className={`um-grid ${isEditorVisible ? 'is-editing' : ''}`}>
             <aside className="um-users">
               <input
                 type="text"
                 className="um-search"
-                placeholder="Search by name or mobile..."
+                placeholder="Search by name, mobile or email..."
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
@@ -375,17 +484,17 @@ export default function UserManagementPage() {
                       role="button"
                       tabIndex={0}
                       className={`um-user-item ${selectedUserId === user.id ? 'active' : ''}`}
-                      onClick={() => selectExistingUser(user)}
+                      onClick={() => handleUserClick(user)}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault();
-                          selectExistingUser(user);
+                          handleUserClick(user);
                         }
                       }}
                     >
                       <div className="um-user-item-main">
                         <strong>{user.name}</strong>
-                        <span>{user.mobile_no || 'No mobile number'}</span>
+                        <span>{formatMobile(user) || user.email || 'No mobile number'}</span>
                       </div>
                       <span
                         role="button"
@@ -414,54 +523,113 @@ export default function UserManagementPage() {
             <div className="um-editor">
               {!isEditorVisible ? (
                 <div className="um-empty um-editor-empty">
-                  Click <strong>+ New User</strong> to open the form.
+                  <div>
+                    Select a user from the list to edit,
+                    <br />
+                    or click <strong>+ New User</strong> to add one.
+                  </div>
                 </div>
               ) : (
                 <>
+                  <div className="um-editor-head">
+                    <button type="button" className="um-back-btn" onClick={handleBackToList}>
+                      ← Back to users
+                    </button>
+                    <div className="um-editor-title">
+                      <span className={`um-mode-badge ${form.id ? 'edit' : 'new'}`}>
+                        {form.id ? 'Editing' : 'New User'}
+                      </span>
+                      <h4>{form.id ? selectedUser?.name || form.name || 'User' : 'Create a new user'}</h4>
+                      <p>
+                        {`${activePermissionCount} of ${permissionRows.length} features have access`}
+                        {isDirty ? <span className="um-dirty"> · Unsaved changes</span> : null}
+                      </p>
+                      {form.id ? (
+                        <p className="um-shared-note">
+                          Name, email, mobile and secret code belong to this person&apos;s registration, so changes
+                          apply in every trust they are part of. Permissions are for this trust only.
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+
                   <div className="um-form">
                     <label>
                       <span>Name *</span>
                       <input
                         type="text"
+                        className={visibleErrors.name ? 'has-error' : ''}
                         value={form.name}
                         onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                        onBlur={() => markTouched('name')}
                         placeholder="Enter full name"
+                        aria-invalid={!!visibleErrors.name}
                       />
+                      {visibleErrors.name ? <small className="um-field-error">{visibleErrors.name}</small> : null}
                     </label>
 
                     <label>
                       <span>Email</span>
                       <input
                         type="email"
+                        className={visibleErrors.email ? 'has-error' : ''}
                         value={form.email}
-                        onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                        placeholder="Enter email address"
+                        onChange={handleEmailChange}
+                        onBlur={() => markTouched('email')}
+                        placeholder="name@example.com"
+                        autoComplete="off"
+                        aria-invalid={!!visibleErrors.email}
                       />
+                      {visibleErrors.email ? <small className="um-field-error">{visibleErrors.email}</small> : null}
                     </label>
 
-                    <label>
-                      <span>Mobile No.</span>
-                      <input
-                        type="text"
-                        value={form.mobile_no}
-                        onChange={(event) => setForm((prev) => ({ ...prev, mobile_no: event.target.value }))}
-                        placeholder="Enter mobile number"
-                      />
-                    </label>
+                    {/* Not a <label>: it would forward clicks to the country button. */}
+                    <div className="um-field">
+                      <span id="um-mobile-label">Mobile No.</span>
+                      <div
+                        className={`um-phone-wrap ${visibleErrors.mobile_no ? 'has-error' : ''}`}
+                        onBlur={(event) => {
+                          if (!event.currentTarget.contains(event.relatedTarget)) markTouched('mobile_no');
+                        }}
+                      >
+                        <CountryPicker value={selectedCountry} onChange={handleCountryChange} disabled={saving} />
+                        <input
+                          type="tel"
+                          className="um-phone-input"
+                          inputMode="numeric"
+                          value={form.mobile_no}
+                          onChange={handleMobileChange}
+                          placeholder={
+                            selectedCountry.iso === DEFAULT_COUNTRY.iso
+                              ? '98765 43210'
+                              : `${selectedCountry.min === selectedCountry.max ? selectedCountry.min : `${selectedCountry.min}-${selectedCountry.max}`} digits`
+                          }
+                          autoComplete="off"
+                          aria-labelledby="um-mobile-label"
+                          aria-invalid={!!visibleErrors.mobile_no}
+                        />
+                      </div>
+                      {visibleErrors.mobile_no ? <small className="um-field-error">{visibleErrors.mobile_no}</small> : null}
+                    </div>
 
                     <label>
-                      <span>Secret Code (numeric)</span>
+                      <span>Secret Code (6 digits) *</span>
                       <input
                         type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        className={visibleErrors.secret_code ? 'has-error' : ''}
                         value={form.secret_code}
-                        onChange={(event) => setForm((prev) => ({ ...prev, secret_code: event.target.value }))}
-                        placeholder="e.g. 1234"
+                        onChange={(event) =>
+                          setForm((prev) => ({ ...prev, secret_code: event.target.value.replace(/\D/g, '').slice(0, 6) }))
+                        }
+                        onBlur={() => markTouched('secret_code')}
+                        placeholder="e.g. 123456"
+                        required
+                        aria-invalid={!!visibleErrors.secret_code}
                       />
+                      {visibleErrors.secret_code ? <small className="um-field-error">{visibleErrors.secret_code}</small> : null}
                     </label>
-
-                    <button type="button" className="um-save-btn" onClick={handleSave} disabled={saving}>
-                      {saving ? 'Saving...' : 'Save User + Permissions'}
-                    </button>
                   </div>
 
                   <div className="um-role-table-wrap">
@@ -469,58 +637,21 @@ export default function UserManagementPage() {
                       <thead>
                         <tr>
                           <th>Feature</th>
-                          <th>
-                            <label className="um-header-checkbox">
-                              <input
-                                type="checkbox"
-                                checked={permissionColumnStates.can_view.allChecked}
-                                ref={(input) => {
-                                  if (input) input.indeterminate = permissionColumnStates.can_view.someChecked;
-                                }}
-                                onChange={(event) => handleColumnToggle('can_view', event.target.checked)}
-                              />
-                              <span>View</span>
-                            </label>
-                          </th>
-                          <th>
-                            <label className="um-header-checkbox">
-                              <input
-                                type="checkbox"
-                                checked={permissionColumnStates.can_add.allChecked}
-                                ref={(input) => {
-                                  if (input) input.indeterminate = permissionColumnStates.can_add.someChecked;
-                                }}
-                                onChange={(event) => handleColumnToggle('can_add', event.target.checked)}
-                              />
-                              <span>Add</span>
-                            </label>
-                          </th>
-                          <th>
-                            <label className="um-header-checkbox">
-                              <input
-                                type="checkbox"
-                                checked={permissionColumnStates.can_edit.allChecked}
-                                ref={(input) => {
-                                  if (input) input.indeterminate = permissionColumnStates.can_edit.someChecked;
-                                }}
-                                onChange={(event) => handleColumnToggle('can_edit', event.target.checked)}
-                              />
-                              <span>Edit</span>
-                            </label>
-                          </th>
-                          <th>
-                            <label className="um-header-checkbox">
-                              <input
-                                type="checkbox"
-                                checked={permissionColumnStates.can_delete.allChecked}
-                                ref={(input) => {
-                                  if (input) input.indeterminate = permissionColumnStates.can_delete.someChecked;
-                                }}
-                                onChange={(event) => handleColumnToggle('can_delete', event.target.checked)}
-                              />
-                              <span>Delete</span>
-                            </label>
-                          </th>
+                          {PERMISSION_COLUMNS.map(({ key, label }) => (
+                            <th key={key}>
+                              <label className="um-header-checkbox">
+                                <input
+                                  type="checkbox"
+                                  checked={permissionColumnStates[key].allChecked}
+                                  ref={(input) => {
+                                    if (input) input.indeterminate = permissionColumnStates[key].someChecked;
+                                  }}
+                                  onChange={(event) => handleColumnToggle(key, event.target.checked)}
+                                />
+                                <span>{label}</span>
+                              </label>
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
@@ -537,46 +668,90 @@ export default function UserManagementPage() {
                                   <span>{row.feature_subname || 'No subtitle'}</span>
                                 </div>
                               </td>
-                              <td>
-                                <input
-                                  type="checkbox"
-                                  checked={row.can_view}
-                                  onChange={() => handlePermissionToggle(row.feature_id, 'can_view')}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="checkbox"
-                                  checked={row.can_add}
-                                  onChange={() => handlePermissionToggle(row.feature_id, 'can_add')}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="checkbox"
-                                  checked={row.can_edit}
-                                  onChange={() => handlePermissionToggle(row.feature_id, 'can_edit')}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="checkbox"
-                                  checked={row.can_delete}
-                                  onChange={() => handlePermissionToggle(row.feature_id, 'can_delete')}
-                                />
-                              </td>
+                              {PERMISSION_COLUMNS.map(({ key }) => (
+                                <td key={key}>
+                                  <input
+                                    type="checkbox"
+                                    checked={row[key]}
+                                    onChange={() => handlePermissionToggle(row.feature_id, key)}
+                                  />
+                                </td>
+                              ))}
                             </tr>
                           ))
                         )}
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Mobile: one card per feature instead of a wide table */}
+                  <div className="um-perm-cards">
+                    {!features.length ? (
+                      <div className="um-empty">No enabled features available.</div>
+                    ) : (
+                      <>
+                        <div className="um-perm-bulk">
+                          <span>Apply to all features</span>
+                          <div className="um-perm-toggles">
+                            {PERMISSION_COLUMNS.map(({ key, label }) => (
+                              <label
+                                key={key}
+                                className={`um-chip ${permissionColumnStates[key].allChecked ? 'on' : ''}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={permissionColumnStates[key].allChecked}
+                                  ref={(input) => {
+                                    if (input) input.indeterminate = permissionColumnStates[key].someChecked;
+                                  }}
+                                  onChange={(event) => handleColumnToggle(key, event.target.checked)}
+                                />
+                                {label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        {permissionRows.map((row) => (
+                          <div key={row.feature_id} className="um-perm-card">
+                            <div className="um-feature-cell">
+                              <strong>{row.feature_name}</strong>
+                              <span>{row.feature_subname || 'No subtitle'}</span>
+                            </div>
+                            <div className="um-perm-toggles">
+                              {PERMISSION_COLUMNS.map(({ key, label }) => (
+                                <label key={key} className={`um-chip ${row[key] ? 'on' : ''}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={row[key]}
+                                    onChange={() => handlePermissionToggle(row.feature_id, key)}
+                                  />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="um-save-bar">
+                    <span className={`um-save-hint ${isDirty ? 'dirty' : ''}`}>
+                      {isDirty ? 'You have unsaved changes' : form.id ? 'All changes saved' : 'Fill details and set permissions'}
+                    </span>
+                    <button
+                      type="button"
+                      className="um-save-btn"
+                      onClick={handleSave}
+                      disabled={saving}
+                    >
+                      {saving ? 'Saving...' : form.id ? 'Save Changes' : 'Create User'}
+                    </button>
+                  </div>
                 </>
               )}
             </div>
           </div>
-
-          {error ? <div className="um-error">{error}</div> : null}
         </section>
       </main>
 
