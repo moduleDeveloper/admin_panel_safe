@@ -6,7 +6,7 @@ import { warmupTrustData } from '../../../core/services/warmupService';
 import { fetchNoticeboardByTrust } from '../../extra/services/noticeboardService';
 import { fetchEventsByTrust } from '../../extra/services/eventsService';
 import { fetchNotificationsByTrustId } from '../../../core/services/notificationsService';
-import { fetchDashboardByTrustId, fetchMemberCreationStats } from '../services/dashboardService';
+import { fetchDashboardByTrustId, fetchMemberCreationStats, fetchMemberCreationPage } from '../services/dashboardService';
 import Sidebar from '../../../core/components/Sidebar';
 
 // ── Export reusable icon renderer component ───────────────────────────────────
@@ -611,6 +611,8 @@ export default function Dashboard() {
   const trustName = activeTrust?.name || trust?.name || 'No Trust Selected';
 
   const [searchFocused, setSearchFocused] = useState(false);
+  // Member insight cards can be collapsed on mobile (toggle is hidden on desktop)
+  const [memberCardsOpen, setMemberCardsOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [liveNotices, setLiveNotices] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
@@ -639,6 +641,11 @@ export default function Dashboard() {
   const memberRangeInvalid = !memberFromDate || !memberToDate || memberFromDate > memberToDate;
   const memberRangeKey = `${trustId}|${memberFromDate}|${memberToDate}`;
   // Never show another trust's numbers while a new trust is loading
+  // Members table: server-side pagination. Page is tied to the range so a new range starts on page 1.
+  const [memberPageState, setMemberPageState] = useState({ rangeKey: '', page: 1 });
+  const [memberPageSize, setMemberPageSize] = useState(10);
+  const [memberRowsResult, setMemberRowsResult] = useState({ key: '', rows: [], error: '' });
+  // Live member count (same source as the Total Members card); falls back to the stored dashboard value
   const memberCreationStats = memberCreationResult.rangeKey.startsWith(`${trustId}|`) ? memberCreationResult.stats : null;
   const memberCreationError = memberCreationResult.rangeKey === memberRangeKey ? memberCreationResult.error : '';
 
@@ -832,7 +839,7 @@ export default function Dashboard() {
     (async () => {
       let result;
       try {
-        const { data, error } = await fetchMemberCreationStats({ trustId, from: memberFromDate, to: memberToDate, recentLimit: 10 });
+        const { data, error } = await fetchMemberCreationStats({ trustId, from: memberFromDate, to: memberToDate, recentLimit: 1 });
         result = error || !data
           ? { rangeKey, stats: null, error: error?.message || 'Unable to load member creation stats.' }
           : { rangeKey, stats: data, error: '' };
@@ -886,6 +893,43 @@ export default function Dashboard() {
       compact: true,
     },
   ];
+
+  const governanceTotal = memberCreationStats?.totalMembers ?? governanceStats.total;
+  const memberPage = memberPageState.rangeKey === memberRangeKey ? memberPageState.page : 1;
+  const memberPeriodTotal = memberCreationStats?.createdInPeriod ?? 0;
+  const memberTotalPages = Math.max(Math.ceil(memberPeriodTotal / memberPageSize), 1);
+  const memberSafePage = Math.min(memberPage, memberTotalPages);
+  const memberRowsKey = `${memberRangeKey}|${memberSafePage}|${memberPageSize}`;
+  const memberRowsLoading = Boolean(trustId) && isOverviewDashboard && !memberRangeInvalid && memberRowsResult.key !== memberRowsKey;
+  // Keep the previous page on screen (dimmed) while the next one loads, to avoid flicker
+  const memberRows = memberRowsResult.rows;
+  const memberRowsError = memberRowsResult.key === memberRowsKey ? memberRowsResult.error : '';
+  const setMemberPage = (page) => setMemberPageState({ rangeKey: memberRangeKey, page });
+
+  useEffect(() => {
+    if (!trustId || !isOverviewDashboard || memberRangeInvalid) return undefined;
+    let cancelled = false;
+    const key = memberRowsKey;
+
+    (async () => {
+      let result;
+      try {
+        const { data, error } = await fetchMemberCreationPage({
+          trustId, from: memberFromDate, to: memberToDate, page: memberSafePage, pageSize: memberPageSize,
+        });
+        result = error || !data
+          ? { key, rows: [], error: error?.message || 'Unable to load members.' }
+          : { key, rows: data, error: '' };
+      } catch (err) {
+        result = { key, rows: [], error: err?.message || 'Unable to load members.' };
+      }
+      if (!cancelled) setMemberRowsResult(result);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trustId, isOverviewDashboard, memberRangeInvalid, memberRowsKey, memberFromDate, memberToDate, memberSafePage, memberPageSize]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1087,7 +1131,20 @@ export default function Dashboard() {
                   <div className="dp-mci-error">Couldn&apos;t load member creation stats: {memberCreationError}</div>
                 )}
 
-                <div className={`dp-kpis dp-mci-kpis ${memberCreationLoading ? 'is-loading' : ''}`} aria-busy={memberCreationLoading}>
+                <button
+                  type="button"
+                  className="dp-mci-toggle"
+                  aria-expanded={memberCardsOpen}
+                  onClick={() => setMemberCardsOpen((open) => !open)}
+                >
+                  {memberCardsOpen ? 'Hide summary cards' : 'Show summary cards'}
+                  <span aria-hidden="true">{memberCardsOpen ? '▲' : '▼'}</span>
+                </button>
+
+                <div
+                  className={`dp-kpis dp-mci-kpis ${memberCreationLoading ? 'is-loading' : ''} ${memberCardsOpen ? '' : 'is-collapsed'}`}
+                  aria-busy={memberCreationLoading}
+                >
                   {memberCreationCards.map((item) => (
                     <div key={item.label} className={`dp-kpi dp-${item.tone}`}>
                       <div className="dp-kpi-title">{item.label}</div>
@@ -1101,13 +1158,16 @@ export default function Dashboard() {
 
                 <div className="dp-mci-recent">
                   <div className="dp-mci-recent-title">
-                    Recent Members {memberCreationLoading && <em>Loading…</em>}
+                    Members Created {(memberCreationLoading || memberRowsLoading) && <em>Loading…</em>}
                   </div>
-                  {!memberCreationLoading && memberCreationStats && memberCreationStats.recentMembers.length === 0 && (
+                  {memberRowsError && !memberRowsLoading && (
+                    <div className="dp-mci-error">Couldn&apos;t load members: {memberRowsError}</div>
+                  )}
+                  {!memberCreationLoading && !memberRowsLoading && !memberRowsError && memberCreationStats && memberPeriodTotal === 0 && (
                     <div className="dp-empty-note">No Members were created in the selected period.</div>
                   )}
-                  {memberCreationStats && memberCreationStats.recentMembers.length > 0 && (
-                    <div className="dp-mci-table-wrap">
+                  {memberRows.length > 0 && (
+                    <div className={`dp-mci-table-wrap ${memberRowsLoading ? 'is-loading' : ''}`}>
                       <table className="dp-mci-table">
                         <thead>
                           <tr>
@@ -1117,15 +1177,43 @@ export default function Dashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {memberCreationStats.recentMembers.map((member) => (
+                          {memberRows.map((member) => (
                             <tr key={member.members_id ?? `${member.mobile}-${member.created_at}`}>
-                              <td>{member.name || '—'}</td>
-                              <td>{member.mobile || '—'}</td>
+                              <td>{member.name || 'Guest Member'}</td>
+                              <td>
+                                {member.mobile
+                                  ? <a className="dp-mci-call" href={`tel:${String(member.mobile).replace(/[^\d+]/g, '')}`}>{member.mobile}</a>
+                                  : '—'}
+                              </td>
                               <td>{formatDateTime(member.created_at)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  )}
+                  {memberPeriodTotal > 0 && (
+                    <div className="dp-mci-pager">
+                      <label className="dp-mci-size">
+                        Show
+                        <select
+                          value={memberPageSize}
+                          onChange={(event) => { setMemberPageSize(Number(event.target.value)); setMemberPage(1); }}
+                        >
+                          {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                        per page
+                      </label>
+                      <span className="dp-mci-showing">
+                        {memberRows.length > 0
+                          ? `Showing ${(memberSafePage - 1) * memberPageSize + 1} – ${(memberSafePage - 1) * memberPageSize + memberRows.length} of ${memberPeriodTotal}`
+                          : `${memberPeriodTotal} members`}
+                      </span>
+                      <div className="dp-mci-pages">
+                        <button type="button" disabled={memberSafePage <= 1 || memberRowsLoading} onClick={() => setMemberPage(memberSafePage - 1)}>‹ Previous</button>
+                        <span>Page {memberSafePage} of {memberTotalPages}</span>
+                        <button type="button" disabled={memberSafePage >= memberTotalPages || memberRowsLoading} onClick={() => setMemberPage(memberSafePage + 1)}>Next ›</button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1135,11 +1223,11 @@ export default function Dashboard() {
                 <article className="dp-card">
                   <div className="dp-card-head">
                     <h3>Governance Overview</h3>
-                    <span>{governanceStats.total} total</span>
+                    <span>{governanceTotal} total</span>
                   </div>
                   <div className="dp-donut-row gov">
                     <div className="dp-donut gov">
-                      <strong>{governanceStats.total}</strong>
+                      <strong>{governanceTotal}</strong>
                       <span>Total Members</span>
                     </div>
                     <div className="dp-list gov">
@@ -1147,19 +1235,19 @@ export default function Dashboard() {
                         <div className="dp-list-meta"><span className="dot purple" /> Elected Members</div>
                         <b>{governanceStats.electedMembers}</b>
                       </div>
-                      <div className="dp-meter"><span style={{ width: `${governanceStats.total ? (governanceStats.electedMembers / governanceStats.total) * 100 : 0}%` }} className="meter-purple" /></div>
+                      <div className="dp-meter"><span style={{ width: `${governanceTotal ? (governanceStats.electedMembers / governanceTotal) * 100 : 0}%` }} className="meter-purple" /></div>
 
                       <div className="dp-list-row">
                         <div className="dp-list-meta"><span className="dot gold" /> Committee Members</div>
                         <b>{governanceStats.committeeMembers}</b>
                       </div>
-                      <div className="dp-meter"><span style={{ width: `${governanceStats.total ? (governanceStats.committeeMembers / governanceStats.total) * 100 : 0}%` }} className="meter-gold" /></div>
+                      <div className="dp-meter"><span style={{ width: `${governanceTotal ? (governanceStats.committeeMembers / governanceTotal) * 100 : 0}%` }} className="meter-gold" /></div>
 
                       <div className="dp-list-row">
                         <div className="dp-list-meta"><span className="dot green" /> VIP / Patron Members</div>
                         <b>{governanceStats.vipPatronMembers}</b>
                       </div>
-                      <div className="dp-meter"><span style={{ width: `${governanceStats.total ? (governanceStats.vipPatronMembers / governanceStats.total) * 100 : 0}%` }} className="meter-green" /></div>
+                      <div className="dp-meter"><span style={{ width: `${governanceTotal ? (governanceStats.vipPatronMembers / governanceTotal) * 100 : 0}%` }} className="meter-green" /></div>
                     </div>
                   </div>
                 </article>
