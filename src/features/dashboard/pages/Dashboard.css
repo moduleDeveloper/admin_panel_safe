@@ -2581,3 +2581,51 @@
     font-size: 12px;
   }
 }
+
+/* Member insight cards: collapse toggle + compact cards (mobile only) */
+.dp-mci-toggle { display: none; }
+
+@media (max-width: 600px) {
+  .dp-mci-toggle {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    margin: 10px 0 8px; padding: 8px 12px; border: 1px solid #e3e7f6; border-radius: 10px;
+    background: #f6f8ff; color: #3b4a8f; font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer;
+  }
+  .dp-mci-toggle span { font-size: 10px; }
+  .dp-mci-kpis { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .dp-mci-kpis.is-collapsed { display: none; }
+  .dp-mci-kpis .dp-kpi { padding: 10px 12px; border-radius: 12px; }
+  .dp-mci-kpis .dp-kpi-title { font-size: 11px; }
+  .dp-mci-kpis .dp-kpi-value { margin-top: 4px; font-size: 20px; }
+  .dp-mci-kpis .dp-kpi-value.dp-kpi-value-sm { font-size: 13px; }
+  .dp-mci-kpis .dp-kpi-note { margin-top: 4px; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+@media (max-width: 600px) {
+  .dp-mci-kpis .dp-kpi-value.dp-kpi-value-sm { font-size: 12px; line-height: 1.25; margin-top: 6px; }
+}
+
+.dp-mci-table a.dp-mci-call { color: #2563eb; font-weight: 600; text-decoration: none; }
+.dp-mci-table a.dp-mci-call:hover { text-decoration: underline; }
+
+/* Members table pagination */
+.dp-mci-table-wrap.is-loading { opacity: 0.55; transition: opacity 0.15s; }
+.dp-mci-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #374151; }
+.dp-mci-size { display: flex; align-items: center; gap: 8px; }
+.dp-mci-size select { height: 32px; border: 1px solid #d9dfeb; border-radius: 6px; padding: 0 8px; font-family: inherit; font-size: 13px; background: #fff; }
+.dp-mci-pages { display: flex; align-items: center; gap: 8px; }
+.dp-mci-pages span { color: #6b7280; }
+.dp-mci-pages button {
+  height: 32px; padding: 0 12px; border: 1px solid #e0e5ee; border-radius: 6px; background: #fff;
+  color: #374151; font-size: 13px; font-family: inherit; cursor: pointer;
+}
+.dp-mci-pages button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (max-width: 600px) {
+  .dp-mci-pager { flex-direction: column; align-items: stretch; gap: 10px; }
+  .dp-mci-showing { text-align: center; order: 1; }
+  .dp-mci-pages { order: 2; justify-content: space-between; }
+  .dp-mci-pages button { flex: 1; height: 38px; }
+  .dp-mci-pages span { flex: none; white-space: nowrap; }
+  .dp-mci-size { order: 3; justify-content: center; }
+}

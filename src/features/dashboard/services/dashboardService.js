@@ -169,3 +169,31 @@ export async function fetchMemberCreationStats({ trustId, from, to, recentLimit 
     error: null,
   };
 }
+
+/**
+ * One page of Members linked to `trustId` created in [from, to] (local dates, inclusive), newest first.
+ * `page` is 1-based. Pagination happens in the database (range), so large periods stay cheap.
+ */
+export async function fetchMemberCreationPage({ trustId, from, to, page = 1, pageSize = 10 } = {}) {
+  if (!trustId) return { data: null, error: { message: 'No trust id provided.' } };
+  const fromStart = parseLocalDate(from);
+  const toStart = parseLocalDate(to);
+  if (!fromStart || !toStart) return { data: null, error: { message: 'Invalid date range.' } };
+  if (fromStart > toStart) return { data: null, error: { message: 'From date must be on or before To date.' } };
+
+  const size = Math.max(toNonNegativeInt(pageSize, 10), 1);
+  const offset = (Math.max(toNonNegativeInt(page, 1), 1) - 1) * size;
+
+  const { data, error } = await supabase
+    .from(MEMBERS_TABLE)
+    .select(MEMBER_INSIGHT_FIELDS)
+    .eq('reg_members.trust_id', trustId)
+    .gte('created_at', fromStart.toISOString())
+    .lt('created_at', addDays(toStart, 1).toISOString())
+    .order('created_at', { ascending: false })
+    .order('members_id', { ascending: false })
+    .range(offset, offset + size - 1);
+
+  if (error) return { data: null, error };
+  return { data: (data || []).map(normalizeMemberInsightRow), error: null };
+}
