@@ -4,12 +4,16 @@ import { cachedQuery, invalidateCache } from '../../../core/services/requestCach
 const USER_COLUMNS = `
   id,
   trust_id,
-  name,
-  email,
-  mobile_no,
-  secret_code,
+  user_reg_id,
   created_at,
-  updated_at
+  updated_at,
+  users_reg:user_reg_id (
+    id,
+    name,
+    email,
+    mobile,
+    secret_code
+  )
 `;
 
 const USER_ROLE_COLUMNS = `
@@ -38,11 +42,47 @@ function parseSecretCode(value) {
     return { value: null, error: { message: 'Secret code must contain digits only.' } };
   }
 
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed)) {
-    return { value: null, error: { message: 'Secret code is invalid.' } };
-  }
-  return { value: parsed, error: null };
+  return { value: normalized, error: null };
+}
+
+function normalizeUserRow(row = {}) {
+  const userReg = Array.isArray(row.users_reg) ? row.users_reg[0] : row.users_reg;
+
+  return {
+    id: row.id,
+    trust_id: row.trust_id,
+    user_reg_id: row.user_reg_id || userReg?.id || null,
+    name: userReg?.name || '',
+    email: userReg?.email || '',
+    mobile_no: userReg?.mobile || '',
+    secret_code: userReg?.secret_code || null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+async function fetchUserLink(userId) {
+  if (!userId) return { data: null, error: { message: 'User id is required.' } };
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, trust_id, user_reg_id')
+    .eq('id', userId)
+    .single();
+
+  return { data, error };
+}
+
+async function fetchUserById(userId) {
+  if (!userId) return { data: null, error: { message: 'User id is required.' } };
+
+  const { data, error } = await supabase
+    .from('users')
+    .select(USER_COLUMNS)
+    .eq('id', userId)
+    .single();
+
+  return { data: data ? normalizeUserRow(data) : null, error };
 }
 
 export async function fetchUsersByTrustId(trustId) {
@@ -55,7 +95,7 @@ export async function fetchUsersByTrustId(trustId) {
       .eq('trust_id', trustId)
       .order('created_at', { ascending: false, nullsFirst: false });
 
-    return { data: data || [], error };
+    return { data: (data || []).map(normalizeUserRow), error };
   }, 10000);
 }
 
@@ -118,22 +158,34 @@ export async function createPanelUser(trustId, payload = {}) {
   const { value: secretCode, error: secretError } = parseSecretCode(payload.secret_code);
   if (secretError) return { data: null, error: secretError };
 
-  const insertPayload = {
-    trust_id: trustId,
+  const userRegPayload = {
     name,
     email: String(payload.email || '').trim() || null,
-    mobile_no: String(payload.mobile_no || '').trim() || null,
+    mobile: String(payload.mobile_no || '').trim() || null,
     secret_code: secretCode,
   };
 
-  const { data, error } = await supabase
+  const { data: userReg, error: userRegError } = await supabase
+    .from('users_reg')
+    .insert([userRegPayload])
+    .select('id')
+    .single();
+
+  if (userRegError) return { data: null, error: userRegError };
+
+  const { data: user, error } = await supabase
     .from('users')
-    .insert([insertPayload])
+    .insert([{ trust_id: trustId, user_reg_id: userReg.id }])
     .select(USER_COLUMNS)
     .single();
 
-  if (!error) invalidateCache('user-management:');
-  return { data, error };
+  if (error) {
+    await supabase.from('users_reg').delete().eq('id', userReg.id);
+    return { data: null, error };
+  }
+
+  invalidateCache('user-management:');
+  return { data: normalizeUserRow(user), error: null };
 }
 
 export async function updatePanelUser(userId, payload = {}) {
@@ -145,29 +197,50 @@ export async function updatePanelUser(userId, payload = {}) {
   const { value: secretCode, error: secretError } = parseSecretCode(payload.secret_code);
   if (secretError) return { data: null, error: secretError };
 
-  const updatePayload = {
+  const { data: userLink, error: linkError } = await fetchUserLink(userId);
+  if (linkError) return { data: null, error: linkError };
+  if (!userLink?.user_reg_id) {
+    return { data: null, error: { message: 'Linked user registration was not found.' } };
+  }
+
+  const userRegPayload = {
     name,
     email: String(payload.email || '').trim() || null,
-    mobile_no: String(payload.mobile_no || '').trim() || null,
+    mobile: String(payload.mobile_no || '').trim() || null,
     secret_code: secretCode,
     updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await supabase
-    .from('users')
-    .update(updatePayload)
-    .eq('id', userId)
-    .select(USER_COLUMNS)
-    .single();
+  const { error: userRegError } = await supabase
+    .from('users_reg')
+    .update(userRegPayload)
+    .eq('id', userLink.user_reg_id);
 
+  if (userRegError) return { data: null, error: userRegError };
+
+  await supabase
+    .from('users')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', userId);
+
+  const { data, error } = await fetchUserById(userId);
   if (!error) invalidateCache('user-management:');
   return { data, error };
 }
 
 export async function deletePanelUser(userId) {
   if (!userId) return { error: { message: 'User id is required.' } };
+
+  const { data: userLink, error: linkError } = await fetchUserLink(userId);
+  if (linkError) return { error: linkError };
+
   const { error } = await supabase.from('users').delete().eq('id', userId);
-  if (!error) invalidateCache('user-management:');
+  if (!error) {
+    if (userLink?.user_reg_id) {
+      await supabase.from('users_reg').delete().eq('id', userLink.user_reg_id);
+    }
+    invalidateCache('user-management:');
+  }
   return { error };
 }
 
