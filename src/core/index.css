@@ -236,3 +236,76 @@ h1, h2, h3, h4, h5, h6,
     font-size: 13px !important;
   }
 }
+
+
+/* ============================================================
+   DARK THEME
+   Inverts the whole page and rotates the hue back so colours keep their
+   identity, then tints it to a slate palette. Media gets the inverse filter
+   so it keeps its true colours.
+   Toggle lives in the sidebar (core/utils/theme.js sets data-theme on <html>).
+   ============================================================ */
+html[data-theme='dark'] {
+  background: #fff;
+  /* SVG filter in index.html: invert + hue-rotate + slate tint (soft dark navy, not pure black) */
+  filter: url(#theme-dark);
+}
+
+html[data-theme='dark'] img,
+html[data-theme='dark'] video,
+html[data-theme='dark'] canvas,
+html[data-theme='dark'] picture,
+html[data-theme='dark'] iframe,
+html[data-theme='dark'] [style*='background-image'] {
+  /* inverse of the page filter, so media keeps its true colours */
+  filter: url(#theme-dark-reverse);
+}
+
+/* Dark theme: white text/icons on gradient tiles. The page filter flips them to dark,
+   so they are drawn black here, which the filter turns back into white. */
+html[data-theme='dark'] .module-card-label,
+html[data-theme='dark'] .module-card-desc {
+  color: #000;
+  text-shadow: none;
+}
+
+html[data-theme='dark'] .module-card [stroke='white'] { stroke: #000; }
+html[data-theme='dark'] .module-card [fill='white'] { fill: #000; }
+html[data-theme='dark'] .module-card [fill^='rgba(255,255,255'] { fill: rgba(0, 0, 0, 0.18); }
+
+/* Same idea for the translucent icon / arrow boxes: they should stay light overlays. */
+html[data-theme='dark'] .module-icon-wrap,
+html[data-theme='dark'] .module-card-arrow {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme='dark'] .module-card:hover .module-icon-wrap,
+html[data-theme='dark'] .module-card:hover .module-card-arrow {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* The theme switch keeps its own designed colours in dark mode (undo the page filter). */
+html[data-theme='dark'] .theme-toggle { filter: url(#theme-dark-reverse); }
+html[data-theme='dark'] .theme-toggle-label { color: #5f6788; }
+html[data-theme='dark'] .theme-toggle-label.is-active { color: #e8ecff; }
+
+/* WhatsApp module tiles: same treatment as the dashboard module tiles above. */
+html[data-theme='dark'] .wa-module-card-label,
+html[data-theme='dark'] .wa-module-card-desc {
+  color: #000;
+  text-shadow: none;
+}
+
+html[data-theme='dark'] .wa-module-card [stroke='white'] { stroke: #000; }
+html[data-theme='dark'] .wa-module-card [fill='white'] { fill: #000; }
+html[data-theme='dark'] .wa-module-card [fill^='rgba(255,255,255'] { fill: rgba(0, 0, 0, 0.18); }
+
+html[data-theme='dark'] .wa-module-icon-wrap,
+html[data-theme='dark'] .wa-module-card-arrow {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme='dark'] .wa-module-card:hover .wa-module-icon-wrap,
+html[data-theme='dark'] .wa-module-card:hover .wa-module-card-arrow {
+  background: rgba(0, 0, 0, 0.28);
+}

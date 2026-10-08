@@ -1,0 +1,32 @@
+.theme-toggle { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+
+.theme-toggle-label {
+  font-size: 13px; font-weight: 700; color: #c3c9d9; transition: color 0.25s ease; user-select: none;
+}
+.theme-toggle-label.is-active { color: #1f2a4b; }
+
+.theme-toggle-track {
+  position: relative; width: 50px; height: 28px; padding: 0; border: 0; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(180deg, #6f9dff 0%, #8db6ff 100%);
+  box-shadow: inset 0 1px 3px rgba(30, 60, 140, 0.25);
+  transition: background 0.35s ease;
+}
+.theme-toggle-track:focus-visible { outline: 2px solid #4f7cff; outline-offset: 3px; }
+.theme-toggle-track.is-dark { background: linear-gradient(180deg, #1d2750 0%, #36448a 100%); }
+
+.theme-toggle-knob {
+  position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.35s ease;
+}
+.theme-toggle-track.is-dark .theme-toggle-knob { transform: translateX(22px); background: #e8ecff; }
+
+.theme-toggle-dot { position: absolute; border-radius: 50%; background: #fff; transition: all 0.35s ease; }
+.theme-toggle-dot-lg { width: 5px; height: 5px; top: 5px; right: 7px; }
+.theme-toggle-dot-sm { width: 3px; height: 3px; top: 14px; right: 16px; }
+.theme-toggle-track.is-dark .theme-toggle-dot-lg { right: 36px; top: 8px; opacity: 0.85; }
+.theme-toggle-track.is-dark .theme-toggle-dot-sm { right: 28px; top: 17px; opacity: 0.7; }
+
+@media (max-width: 600px) {
+  .theme-toggle-label { display: none; }
+}

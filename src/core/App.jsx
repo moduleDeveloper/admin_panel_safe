@@ -45,6 +45,10 @@ function App() {
           <Route path="/select-trust" element={<SelectTrustPage />} />
           <Route path="/create-trust" element={<CreateTrustPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/menu" element={<Dashboard />} />
+          <Route path="/company-details" element={<Dashboard />} />
+          <Route path="/app-design" element={<Dashboard />} />
+          <Route path="/extra" element={<Dashboard />} />
           <Route path="/trust-details" element={<TrustDetails />} />
           <Route path="/trustees" element={<TrusteesPage />} />
           <Route path="/members/bulk-upload" element={<MemberImport />} />
