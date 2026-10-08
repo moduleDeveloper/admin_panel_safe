@@ -3,10 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import './SelectTrustPage.css';
 import {
   fetchLinkedTrusts,
-  insertSuperuser,
   recordAdminSessionAction,
   ADMIN_MOBILE_SESSION_KEY,
   ADMIN_NAME_SESSION_KEY,
+  ADMIN_SUPERUSER_SESSION_KEY,
 } from '../../auth/services/authService';
 
 const GRADIENTS = [
@@ -26,37 +26,36 @@ export default function SelectTrustPage() {
   const location = useLocation();
   const {
     superuserId: superuserIdFromState = null,
-    userName: userNameFromState       = 'User',
-    trusts: trustsFromState           = [],
+    userName: userNameFromState       = null,
+    trusts: trustsFromState           = null,
     phone      = '',
     countryCode = '+91',
     fullMobile = '',
-    isNewUser  = false,
   } = location.state || {};
+
+  const readSession = (key) =>
+    (typeof window !== 'undefined' ? window.sessionStorage.getItem(key) : null);
 
   // Ensure fullMobile is always constructed with country code
   const constructedFullMobile = fullMobile || (phone && countryCode ? `${countryCode}${phone}` : '');
 
-  const [superuserId,   setSuperuserId]   = useState(superuserIdFromState);
-  const [userName,      setUserName]      = useState(userNameFromState);
+  // Trusts delivered by the login RPC (router state) are used as-is; re-fetch only when missing.
+  const trustsProvided = Array.isArray(trustsFromState);
+  const superuserId = superuserIdFromState || readSession(ADMIN_SUPERUSER_SESSION_KEY) || null;
+  const userName = userNameFromState || readSession(ADMIN_NAME_SESSION_KEY) || 'User';
+
   const [search,        setSearch]        = useState('');
   const [selected,      setSelected]      = useState(null);
   const [entering,      setEntering]      = useState(false);
-  const [trusts,        setTrusts]        = useState(trustsFromState);
-  const [loadingTrusts, setLoadingTrusts] = useState(false);
-
-  // New-user
-  const [newName,     setNewName]     = useState('');
-  const [nameError,   setNameError]   = useState('');
-  const [saving,      setSaving]      = useState(false);
-  const [registered,  setRegistered]  = useState(false);
+  const [trusts,        setTrusts]        = useState(trustsProvided ? trustsFromState : []);
+  const [loadingTrusts, setLoadingTrusts] = useState(!trustsProvided && !!superuserId);
 
   useEffect(() => {
-    if (!phone && !superuserId) navigate('/login', { replace: true });
-  }, [phone, superuserId, navigate]);
+    if (!superuserId) navigate('/login', { replace: true });
+  }, [superuserId, navigate]);
 
   useEffect(() => {
-    if (isNewUser || !superuserId || trustsFromState.length) return;
+    if (trustsProvided || !superuserId) return;
     let mounted = true;
     (async () => {
       setLoadingTrusts(true);
@@ -64,18 +63,7 @@ export default function SelectTrustPage() {
       if (mounted) { setTrusts(data || []); setLoadingTrusts(false); }
     })();
     return () => { mounted = false; };
-  }, [superuserId, trustsFromState.length, isNewUser]);
-
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    if (!newName.trim()) { setNameError('Please enter your name.'); return; }
-    setSaving(true); setNameError('');
-    const { data, error } = await insertSuperuser(constructedFullMobile, newName.trim());
-    if (error) { setNameError('Could not register. Try again.'); setSaving(false); return; }
-    setSuperuserId(data.id); setUserName(data.name); setRegistered(true); setSaving(false);
-    await new Promise(r => setTimeout(r, 500));
-    navigate('/dashboard', { state: { superuserId: data.id, userName: data.name, trust: null } });
-  };
+  }, [superuserId, trustsProvided]);
 
   const handleSelect = async (trust) => {
     if (entering) return;
@@ -109,100 +97,8 @@ export default function SelectTrustPage() {
     navigate('/login');
   };
 
-  // ── NEW USER VIEW ────────────────────────────────────────────────────────
-  if (isNewUser && !registered) {
-    return (
-      <div className="st-root">
-        <div className="st-left">
-          <div className="st-left-inner">
-            <div className="st-brand">
-              <div className="st-logo">
-                <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
-                  <path d="M16 2L29 9V23L16 30L3 23V9L16 2Z" fill="url(#stG1)"/>
-                  <path d="M16 8L12 18H20L16 24" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <defs>
-                    <linearGradient id="stG1" x1="3" y1="2" x2="29" y2="30" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#818CF8"/><stop offset="1" stopColor="#C4B5FD"/>
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </div>
-              <span className="st-logo-text">AdminX</span>
-            </div>
-            <h1 className="st-left-title">Create your<br/>account 🚀</h1>
-            <p className="st-left-sub">You're just one step away from managing your trust like a pro.</p>
-            <div className="st-left-steps">
-              {['Enter your name', 'System creates your account', 'Start managing'].map((s, i) => (
-                <div className="st-step" key={i}>
-                  <div className="st-step-num">{i + 1}</div>
-                  <span>{s}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="st-deco-1"/><div className="st-deco-2"/>
-        </div>
-
-        <div className="st-right">
-          <div className="st-form-wrap">
-            <div className="st-user-chip">
-              <div className="st-chip-avatar">{(fullMobile || phone).slice(-4)}</div>
-              <span className="st-chip-label">Logged in as {fullMobile || phone}</span>
-            </div>
-
-            <div className="st-form-header">
-              <h2 className="st-form-title">What's your name?</h2>
-              <p className="st-form-sub">This will be used across your admin panel.</p>
-            </div>
-
-            <form onSubmit={handleRegister} className="st-form">
-              <div className="st-field">
-                <label className="st-label">Full Name</label>
-                <input
-                  id="new-user-name"
-                  type="text"
-                  className={`st-input ${nameError ? 'has-error' : ''}`}
-                  placeholder="e.g. Rahul Sharma"
-                  value={newName}
-                  onChange={e => { setNewName(e.target.value); setNameError(''); }}
-                  autoFocus
-                  autoComplete="name"
-                />
-                {nameError && <p className="st-field-error">{nameError}</p>}
-              </div>
-
-              <button
-                id="register-btn"
-                type="submit"
-                className={`st-btn ${saving ? 'loading' : ''} ${registered ? 'success' : ''}`}
-                disabled={saving || registered}
-              >
-                {saving ? (
-                  <span className="st-btn-inner"><span className="st-spinner"/>Creating Account...</span>
-                ) : registered ? (
-                  <span className="st-btn-inner">✅ Done! Redirecting...</span>
-                ) : (
-                  <span className="st-btn-inner">
-                    Get Started
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </span>
-                )}
-              </button>
-            </form>
-
-            <button className="st-back-btn" onClick={handleSignOut}>
-              ← Back to login
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // ── EXISTING USER — NO TRUST VIEW ────────────────────────────────────────
-  if (!isNewUser && !loadingTrusts && trusts.length === 0) {
+  if (!loadingTrusts && trusts.length === 0) {
     return (
       <div className="st-root">
         <div className="st-left">
