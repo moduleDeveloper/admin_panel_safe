@@ -1,3 +1,5 @@
+import ThemeToggle from '../../../core/components/ThemeToggle';
+import { NAV_SECTION_PATHS, sectionKeyFromPath } from '../../../core/utils/navSections';
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './Dashboard.css';
@@ -650,7 +652,9 @@ export default function Dashboard() {
   const memberCreationError = memberCreationResult.rangeKey === memberRangeKey ? memberCreationResult.error : '';
 
   const userInitials = initials(userName);
-  const currentSidebarNavKey = location.state?.sidebarNavKey || 'dashboard';
+  // The section comes from the route (/menu, /extra, ...). Old links to /dashboard that still carry
+  // state.sidebarNavKey keep working: they render that section and are redirected below.
+  const currentSidebarNavKey = sectionKeyFromPath(location.pathname) || location.state?.sidebarNavKey || 'dashboard';
   const pageTitle = NAV_SECTION_TITLES[currentSidebarNavKey] || 'Dashboard';
 
   const scopedModules = useMemo(() => {
@@ -963,6 +967,14 @@ export default function Dashboard() {
     };
   }, [trustId]);
 
+  // Legacy navigation: '/dashboard' + state.sidebarNavKey -> the section's own route
+  useEffect(() => {
+    if (location.pathname !== '/dashboard') return;
+    const legacyKey = location.state?.sidebarNavKey;
+    const target = legacyKey && legacyKey !== 'dashboard' ? NAV_SECTION_PATHS[legacyKey] : null;
+    if (target) navigate(target, { replace: true, state: location.state });
+  }, [location.pathname, location.state, navigate]);
+
   // If no trust is linked, redirect
   useEffect(() => {
     if (!trustId) {
@@ -1022,6 +1034,8 @@ export default function Dashboard() {
               />
               <span className="search-kbd">⌘K</span>
             </div>
+
+            <ThemeToggle />
 
             <button className="topbar-icon-btn" title="Notifications">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
