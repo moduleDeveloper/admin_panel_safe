@@ -4,14 +4,14 @@ import { cachedQuery, invalidateCache } from '../../../core/services/requestCach
 export const ADMIN_SUPERUSER_SESSION_KEY = 'admin:superuserId';
 export const ADMIN_NAME_SESSION_KEY = 'admin:userName';
 export const ADMIN_MOBILE_SESSION_KEY = 'admin:mobile';
+export const ADMIN_MEMBERS_SESSION_KEY = 'admin:membersId';
 
 function digitsOnly(value = '') {
   return String(value).replace(/\D/g, '');
 }
 
 function buildMobileCandidates(phone, countryCode = '+91') {
-  const all = digitsOnly(phone);
-  const local = all.slice(-10);
+  const local = digitsOnly(phone).slice(-10);
   const cc = digitsOnly(countryCode);
   const base = [
     local,
@@ -20,54 +20,7 @@ function buildMobileCandidates(phone, countryCode = '+91') {
     `0${local}`,
   ].filter(Boolean);
 
-  // Numbers longer than 10 digits (some countries, or a full number that already carries
-  // its country code) would lose digits in `local`, so also try them as-is.
-  if (all.length > 10) {
-    base.push(all, `+${all}`, `${cc}${all}`, `+${cc}${all}`);
-  }
-
   return [...new Set(base)];
-}
-
-/**
- * Check if a mobile number exists in the superuser table.
- * Returns { data: superuser_row | null, error }
- */
-export async function validatePhone(mobile) {
-  const { data, error } = await supabase
-    .from('superuser')
-    .select('id, name, mobile, is_active')
-    .eq('mobile', mobile)
-    .maybeSingle();
-
-  return { data, error };
-}
-
-/**
- * Flexible mobile lookup to handle +country/without country formats.
- * Returns { data: superuser_row | null, error, candidates }
- */
-export async function findSuperuserByMobile(phone, countryCode = '+91') {
-  const candidates = buildMobileCandidates(phone, countryCode);
-
-  const { data, error } = await supabase
-    .from('superuser')
-    .select('id, name, mobile, is_active, secretcode')
-    .in('mobile', candidates);
-
-  if (error) return { data: null, error, candidates };
-  if (!data?.length) return { data: null, error: null, candidates };
-
-  // Prefer exact candidate order match first.
-  for (const candidate of candidates) {
-    const match = data.find((row) => row.mobile === candidate);
-    if (match) return { data: match, error: null, candidates };
-  }
-
-  // Fallback: compare by last 10 digits.
-  const local = digitsOnly(phone).slice(-10);
-  const fallback = data.find((row) => digitsOnly(row.mobile).endsWith(local));
-  return { data: fallback || data[0], error: null, candidates };
 }
 
 export async function findLinkedTrustsByRegisteredMobile(phone, countryCode = '+91') {
@@ -275,6 +228,20 @@ export async function findTrustsByMemberId(memberId) {
 }
 
 /**
+ * Single-RPC admin login. Mobile -> Members -> superuser resolution and secret
+ * code verification happen server-side; nothing sensitive is read client-side.
+ * Returns { data, error } where data is { success, ... } from the RPC.
+ */
+export async function loginToAdminPanel(mobile, secretCode) {
+  const { data, error } = await supabase.rpc('login_to_adminpanel', {
+    p_mobile: mobile,
+    p_secretcode: secretCode,
+  });
+
+  return { data, error };
+}
+
+/**
  * Fetch all trusts linked to a superuser.
  * Returns { data: Trust[] | null, error }
  */
@@ -323,63 +290,6 @@ export async function updateTrustDetails(trustId, updates = {}) {
     invalidateCache('auth:trusts:');
   }
   return { data, error };
-}
-
-/**
- * Insert a new superuser into the superuser table.
- * Stores only the last 10 digits of the mobile number (without country code).
- * Returns { data: superuser_row | null, error }
- */
-export async function insertSuperuser(mobile, name) {
-  // Extract only the last 10 digits
-  const cleanMobile = digitsOnly(mobile).slice(-10);
-  
-  const { data, error } = await supabase
-    .from('superuser')
-    .insert([{ mobile: cleanMobile, name, is_active: true }])
-    .select('id, name, mobile, is_active')
-    .single();
-
-  return { data, error };
-}
-
-/**
- * Simulate OTP send (replace with real SMS gateway later).
- * Returns { success: true }
- */
-export async function sendOtp(mobile) {
-  // TODO: integrate with SMS provider (Twilio, MSG91, etc.)
-  console.log(`[DEV] OTP sent to ${mobile} → use 123456 to verify`);
-  return { success: true };
-}
-
-/**
- * Simulate OTP verification.
- * In production: call your SMS gateway verify API here.
- */
-export async function verifyOtp(mobile, otp) {
-  const code = digitsOnly(otp);
-  const candidates = buildMobileCandidates(mobile);
-  const { data, error } = await supabase
-    .from('superuser')
-    .select('id, mobile, is_active, secretcode')
-    .in('mobile', candidates);
-
-  if (error) return { valid: false, reason: 'lookup_error', error };
-
-  if (data?.length) {
-    const matched = candidates
-      .map((candidate) => data.find((row) => row.mobile === candidate))
-      .find(Boolean) || data[0];
-
-    const secret = digitsOnly(matched?.secretcode);
-    if (!secret) return { valid: false, reason: 'secretcode_missing' };
-    return { valid: secret === code, reason: secret === code ? null : 'secretcode_mismatch' };
-  }
-
-  // New user fallback (demo OTP)
-  const valid = code === '123456';
-  return { valid, reason: valid ? null : 'otp_mismatch' };
 }
 
 export async function recordAdminSessionAction({

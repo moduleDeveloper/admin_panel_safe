@@ -303,8 +303,27 @@
 
 .lp-phone-wrap.shake { animation: lpShake 0.42s ease; }
 
+.lp-cc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-right: 1.5px solid rgba(99,102,241,0.14);
+  flex: none;
+}
+
+.lp-flag { display: block; flex: none; border-radius: 2px; }
+
+.lp-cc-text {
+  font-size: 15px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  color: #1E1F3B;
+}
+
 .lp-phone-input {
   flex: 1;
+  min-width: 0;
   border: none;
   outline: none;
   background: none;
