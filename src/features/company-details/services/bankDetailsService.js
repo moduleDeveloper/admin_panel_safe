@@ -2,7 +2,6 @@ import { supabase } from '../../../core/lib/supabase';
 import { cachedQuery, invalidateCache } from '../../../core/services/requestCache';
 import { getAllowedImageFormatsMessage, prepareImageFileForUpload } from '../../../core/utils/imageUpload';
 
-const TABLE_NAME = 'trust_bank_details';
 const QR_BUCKET = 'trust-qr';
 const MAX_FETCH = 200;
 
@@ -42,10 +41,69 @@ function normalizeRow(row = {}) {
     ifsc_code: row.ifsc_code || '',
     swift_code: row.swift_code || '',
     upi_id: row.upi_id || '',
+    razorpay_id: row.razorpay_id || '',
+    vendor_share: row.vendor_share ?? null,
     size: row.size ?? null,
     created_at: row.created_at || null,
     raw: row,
   };
+}
+
+// Every database read/write goes through the admin-panel RPC:
+//   manage_adminPanel_by_trustdetails(p_trust_id, p_action, p_payload)
+// Bank actions (as provided by the RPC): bank_read | bank_create | bank_update
+const ADMIN_PANEL_RPC = 'manage_adminPanel_by_trustdetails';
+
+const BANK_ERROR_MESSAGES = {
+  TRUST_ID_REQUIRED: 'No trust id provided.',
+  TRUST_NOT_FOUND: 'Trust not found.',
+  INVALID_ACTION: 'This action is not supported by the server.',
+  BANK_NAME_REQUIRED: 'Name is required.',
+  BANK_MOBILE_REQUIRED: 'Mobile is required.',
+  BANK_ID_REQUIRED: 'No record id provided.',
+  BANK_TRUST_ID_NOT_EDITABLE: 'Trust of a bank record cannot be changed.',
+  BANK_DETAILS_NOT_FOUND_IN_TRUST: 'Bank details not found for this trust. Reload and try again.',
+  INVALID_INPUT_FORMAT: 'Some values are in an invalid format.',
+  DUPLICATE_VALUE: 'These bank details already exist.',
+};
+
+async function callBankRpc(trustId, action, payload = {}) {
+  const { data, error } = await supabase.rpc(ADMIN_PANEL_RPC, {
+    p_trust_id: trustId,
+    p_action: action,
+    p_payload: payload,
+  });
+
+  if (error) return { data: null, error };
+  if (!data?.success) {
+    const code = data?.error;
+    const message = BANK_ERROR_MESSAGES[code]
+      || data?.message
+      || (data?.detail ? `Server error: ${data.detail}` : 'Something went wrong. Please try again.');
+    return { data: null, error: { code, message } };
+  }
+  return { data: data.data ?? null, error: null };
+}
+
+const trimOrEmpty = (value) => String(value ?? '').trim();
+
+// Text fields the RPC accepts; '' clears a column on update.
+const BANK_TEXT_FIELDS = [
+  'name', 'mobile', 'email_id', 'qr', 'beneficiary_name', 'account_no',
+  'bank_name', 'branch', 'ifsc_code', 'swift_code', 'upi_id', 'razorpay_id',
+];
+// tei_share is a generated column in the DB, so it is never sent.
+const BANK_NUMBER_FIELDS = ['size', 'vendor_share'];
+
+function toRpcPayload(source = {}) {
+  const payload = {};
+  BANK_TEXT_FIELDS.forEach((key) => {
+    if (source[key] !== undefined) payload[key] = trimOrEmpty(source[key]);
+  });
+  BANK_NUMBER_FIELDS.forEach((key) => {
+    if (source[key] !== undefined) payload[key] = source[key] ?? '';
+  });
+  return payload;
 }
 
 export async function fetchBankDetailsByTrust(trustId) {
@@ -54,19 +112,17 @@ export async function fetchBankDetailsByTrust(trustId) {
   return cachedQuery(
     `bank-details:list:${trustId}`,
     async () => {
-      const { data, error } = await supabase
-        .from(TABLE_NAME)
-        .select('*')
-        .eq('trust_id', trustId)
-        .order('created_at', { ascending: false })
-        .range(0, MAX_FETCH - 1);
-
-      return { data: (data || []).map(normalizeRow), error };
+      const { data, error } = await callBankRpc(trustId, 'bank_read');
+      // RPC returns oldest first; the page lists newest first.
+      const rows = Array.isArray(data) ? [...data].reverse().slice(0, MAX_FETCH) : [];
+      return { data: rows.map(normalizeRow), error };
     },
     12000
   );
 }
 
+// QR image files go to Supabase Storage (an RPC cannot upload files); only the
+// resulting URL is saved to the database, through bank_create / bank_update.
 export async function uploadBankQr(trustId, file) {
   if (!file) return { data: null, error: { message: 'No QR image provided.' } };
 
@@ -109,65 +165,21 @@ export async function uploadBankQr(trustId, file) {
 
 export async function createBankDetail(payload = {}) {
   if (!payload.trust_id) return { data: null, error: { message: 'No trust id provided.' } };
-  if (!String(payload.name || '').trim()) return { data: null, error: { message: 'Name is required.' } };
-  if (!String(payload.mobile || '').trim()) return { data: null, error: { message: 'Mobile is required.' } };
+  if (!trimOrEmpty(payload.name)) return { data: null, error: { message: 'Name is required.' } };
+  if (!trimOrEmpty(payload.mobile)) return { data: null, error: { message: 'Mobile is required.' } };
 
-  const row = {
-    trust_id: payload.trust_id,
-    name: String(payload.name || '').trim(),
-    mobile: String(payload.mobile || '').trim(),
-    email_id: String(payload.email_id || '').trim() || null,
-    qr: String(payload.qr || '').trim() || null,
-    beneficiary_name: String(payload.beneficiary_name || '').trim() || null,
-    account_no: String(payload.account_no || '').trim() || null,
-    bank_name: String(payload.bank_name || '').trim() || null,
-    branch: String(payload.branch || '').trim() || null,
-    ifsc_code: String(payload.ifsc_code || '').trim() || null,
-    swift_code: String(payload.swift_code || '').trim() || null,
-    upi_id: String(payload.upi_id || '').trim() || null,
-    size: payload.size ?? null,
-  };
-
-  const { data, error } = await supabase.from(TABLE_NAME).insert([row]).select('*').single();
+  const { data, error } = await callBankRpc(payload.trust_id, 'bank_create', toRpcPayload(payload));
   if (!error) invalidateCache('bank-details:');
   return { data: data ? normalizeRow(data) : null, error };
 }
 
 export async function updateBankDetail(recordId, updates = {}, trustId = null) {
   if (!recordId) return { data: null, error: { message: 'No record id provided.' } };
+  const scopeTrustId = trustId || updates.trust_id;
+  if (!scopeTrustId) return { data: null, error: { message: 'No trust id provided.' } };
 
-  const payload = {
-    ...(updates.name !== undefined ? { name: String(updates.name || '').trim() } : {}),
-    ...(updates.mobile !== undefined ? { mobile: String(updates.mobile || '').trim() } : {}),
-    ...(updates.email_id !== undefined ? { email_id: String(updates.email_id || '').trim() || null } : {}),
-    ...(updates.qr !== undefined ? { qr: String(updates.qr || '').trim() || null } : {}),
-    ...(updates.beneficiary_name !== undefined
-      ? { beneficiary_name: String(updates.beneficiary_name || '').trim() || null }
-      : {}),
-    ...(updates.account_no !== undefined ? { account_no: String(updates.account_no || '').trim() || null } : {}),
-    ...(updates.bank_name !== undefined ? { bank_name: String(updates.bank_name || '').trim() || null } : {}),
-    ...(updates.branch !== undefined ? { branch: String(updates.branch || '').trim() || null } : {}),
-    ...(updates.ifsc_code !== undefined ? { ifsc_code: String(updates.ifsc_code || '').trim() || null } : {}),
-    ...(updates.swift_code !== undefined ? { swift_code: String(updates.swift_code || '').trim() || null } : {}),
-    ...(updates.upi_id !== undefined ? { upi_id: String(updates.upi_id || '').trim() || null } : {}),
-    ...(updates.size !== undefined ? { size: updates.size } : {}),
-  };
-
-  let query = supabase.from(TABLE_NAME).update(payload).eq('id', recordId);
-  if (trustId) query = query.eq('trust_id', trustId);
-
-  const { data, error } = await query.select('*').single();
+  // trust_id must not be sent: the RPC rejects it on update.
+  const { data, error } = await callBankRpc(scopeTrustId, 'bank_update', { ...toRpcPayload(updates), id: recordId });
   if (!error) invalidateCache('bank-details:');
   return { data: data ? normalizeRow(data) : null, error };
-}
-
-export async function deleteBankDetail(recordId, trustId = null) {
-  if (!recordId) return { error: { message: 'No record id provided.' } };
-
-  let query = supabase.from(TABLE_NAME).delete().eq('id', recordId);
-  if (trustId) query = query.eq('trust_id', trustId);
-
-  const { error } = await query;
-  if (!error) invalidateCache('bank-details:');
-  return { error };
 }

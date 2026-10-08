@@ -4,11 +4,16 @@ import PageHeader from '../../../core/components/PageHeader';
 import Sidebar from '../../../core/components/Sidebar';
 import {
   createBankDetail,
-  deleteBankDetail,
   fetchBankDetailsByTrust,
   updateBankDetail,
   uploadBankQr,
 } from '../services/bankDetailsService';
+import {
+  BANK_FIELD_MAX_LENGTH,
+  BANK_VALIDATED_FIELDS,
+  sanitizeBankField,
+  validateBankForm,
+} from '../utils/bankValidation';
 import '../../extra/pages/NoticeboardPage.css';
 
 function formatDate(value) {
@@ -21,6 +26,12 @@ function formatDate(value) {
 function formatSize(value) {
   if (value === null || value === undefined || value === '') return '-';
   return `${value} KB`;
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined || value === '') return '-';
+  const num = Number(value);
+  return Number.isFinite(num) ? `${num}%` : '-';
 }
 
 function getInitials(value = '') {
@@ -57,6 +68,111 @@ function EyeIcon({ open }) {
   );
 }
 
+function CopyIcon({ done }) {
+  return done ? (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ) : (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="9" y="9" width="11" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+// One label/value tile. Sensitive values are masked with a show/hide toggle;
+// copyable values get a copy button with a short "copied" tick.
+function DetailItem({ label, value, sensitive = false, copyable = false, format }) {
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const raw = String(value ?? '').trim();
+  const hasValue = raw.length > 0;
+
+  let shown = 'Not added';
+  if (hasValue) shown = sensitive && !revealed ? maskSensitive(raw) : format ? format(value) : raw;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(raw);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className={`nb-detail-item${hasValue ? '' : ' is-empty'}`}>
+      <span className="nb-detail-label">{label}</span>
+      <div className="nb-detail-value-row">
+        <strong className="nb-detail-value" title={hasValue && (!sensitive || revealed) ? raw : undefined}>
+          {shown}
+        </strong>
+        {hasValue && (sensitive || copyable) && (
+          <div className="nb-detail-actions">
+            {sensitive && (
+              <button
+                type="button"
+                className="nb-detail-action"
+                onClick={() => setRevealed((prev) => !prev)}
+                title={revealed ? `Hide ${label}` : `Show ${label}`}
+                aria-label={revealed ? `Hide ${label}` : `Show ${label}`}
+              >
+                <EyeIcon open={revealed} />
+              </button>
+            )}
+            {copyable && (
+              <button
+                type="button"
+                className={`nb-detail-action${copied ? ' is-done' : ''}`}
+                onClick={handleCopy}
+                title={copied ? 'Copied' : `Copy ${label}`}
+                aria-label={copied ? 'Copied' : `Copy ${label}`}
+              >
+                <CopyIcon done={copied} />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DetailSection({ title, icon, children }) {
+  return (
+    <section className="nb-detail-section">
+      <h4 className="nb-detail-section-title">
+        <span className="nb-detail-section-icon" aria-hidden="true">{icon}</span>
+        {title}
+      </h4>
+      <div className="nb-detail-grid">{children}</div>
+    </section>
+  );
+}
+
+// Storage URLs are cross-origin, so <a download> would just open the file:
+// fetch it as a blob to force a real download, falling back to a new tab.
+async function downloadQr(url, name) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('fetch failed');
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = `${String(name || 'bank').trim().replace(/[^\w-]+/g, '_') || 'bank'}-qr.${ext}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+
 const EMPTY_FORM = {
   name: '',
   mobile: '',
@@ -70,6 +186,8 @@ const EMPTY_FORM = {
   ifsc_code: '',
   swift_code: '',
   upi_id: '',
+  razorpay_id: '',
+  vendor_share: '',
 };
 
 export default function BankDetailsPage() {
@@ -89,8 +207,7 @@ export default function BankDetailsPage() {
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [updatingId, setUpdatingId] = useState(null);
-  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [, setActiveMenuId] = useState(null);
   const [selectedId, setSelectedId] = useState('');
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -103,15 +220,61 @@ export default function BankDetailsPage() {
     ifsc_code: false,
     swift_code: false,
     upi_id: false,
+    razorpay_id: false,
   });
 
   const toggleFormVisible = (field) => setFormFieldVisible((prev) => ({ ...prev, [field]: !prev[field] }));
 
+  // ── Validation: errors show after a field is left (blur) or on Save ──
+  const [touched, setTouched] = useState({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const validation = useMemo(() => validateBankForm(form), [form]);
+
+  const fieldError = (field) =>
+    touched[field] || submitAttempted ? validation.errors[field] || '' : '';
+
+  const fieldProps = (field) => {
+    const message = fieldError(field);
+    return {
+      value: form[field] ?? '',
+      onChange: (e) => {
+        const value = sanitizeBankField(field, e.target.value);
+        setForm((prev) => ({ ...prev, [field]: value }));
+      },
+      onBlur: () => {
+        setTouched((prev) => ({ ...prev, [field]: true }));
+        setForm((prev) => ({ ...prev, [field]: String(prev[field] ?? '').trim() }));
+      },
+      maxLength: BANK_FIELD_MAX_LENGTH[field],
+      'data-field': field,
+      'aria-invalid': message ? 'true' : undefined,
+      className: message ? 'nb-input-invalid' : undefined,
+    };
+  };
+
+  const renderFieldError = (field) => {
+    const message = fieldError(field);
+    return message ? <small className="nb-field-error" role="alert">{message}</small> : null;
+  };
+
+  const invalidCount = Object.keys(validation.errors).length;
+  const validationSummary = !submitAttempted || validation.isValid
+    ? ''
+    : invalidCount
+      ? `Please fix ${invalidCount} highlighted field${invalidCount > 1 ? 's' : ''}.`
+      : validation.formError;
+
+  const resetValidation = () => {
+    setTouched({});
+    setSubmitAttempted(false);
+  };
+
   const resetForm = () => {
     setForm(EMPTY_FORM);
+    resetValidation();
     setFormError('');
     setEditingId(null);
-    setFormFieldVisible({ account_no: false, ifsc_code: false, swift_code: false, upi_id: false });
+    setFormFieldVisible({ account_no: false, ifsc_code: false, swift_code: false, upi_id: false, razorpay_id: false });
     if (qrFileInputRef.current) qrFileInputRef.current.value = '';
   };
 
@@ -209,7 +372,11 @@ export default function BankDetailsPage() {
       ifsc_code: target.ifsc_code || '',
       swift_code: target.swift_code || '',
       upi_id: target.upi_id || '',
+      razorpay_id: target.razorpay_id || '',
+      vendor_share: target.vendor_share == null ? '' : String(target.vendor_share),
     });
+    setTouched({});
+    setSubmitAttempted(false);
     setEditingId(target.id);
     setFormError('');
   }, [isFormRoute, isCreateRoute, isEditRoute, routeEditId, selectedId, records]);
@@ -229,21 +396,24 @@ export default function BankDetailsPage() {
 
   const handleSave = async () => {
     setFormError('');
-    if (!form.name.trim()) {
-      setFormError('Name is required.');
-      return;
-    }
-    if (!form.mobile.trim()) {
-      setFormError('Mobile is required.');
-      return;
-    }
-    if (form.mobile.trim().length !== 10) {
-      setFormError('Mobile number must be exactly 10 digits.');
+    setSubmitAttempted(true);
+
+    const result = validateBankForm(form);
+    if (!result.isValid) {
+      const firstInvalid = BANK_VALIDATED_FIELDS.find((field) => result.errors[field]);
+      if (firstInvalid) {
+        const input = document.querySelector(`[data-field="${firstInvalid}"]`);
+        input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        input?.focus({ preventScroll: true });
+      }
       return;
     }
 
     setSaving(true);
-    const payload = { ...form, trust_id: trustId };
+    const trimmed = Object.fromEntries(
+      Object.entries(form).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+    );
+    const payload = { ...trimmed, trust_id: trustId };
 
     if (editingId) {
       const { data, error: updateError } = await updateBankDetail(editingId, payload, trustId);
@@ -269,24 +439,6 @@ export default function BankDetailsPage() {
     if (isFormRoute) goToList();
   };
 
-  const handleDelete = async (item) => {
-    const shouldDelete = window.confirm(`Delete bank details for "${item?.name || 'this entry'}"?`);
-    if (!shouldDelete) {
-      setActiveMenuId(null);
-      return;
-    }
-
-    setUpdatingId(item.id);
-    const { error: deleteError } = await deleteBankDetail(item.id, trustId);
-    if (deleteError) {
-      setError(deleteError.message || 'Unable to delete record.');
-    } else {
-      setRecords((prev) => prev.filter((entry) => entry.id !== item.id));
-    }
-    setUpdatingId(null);
-    setActiveMenuId(null);
-  };
-
   const handleEdit = (item) => {
     setForm({
       name: item.name || '',
@@ -301,7 +453,10 @@ export default function BankDetailsPage() {
       ifsc_code: item.ifsc_code || '',
       swift_code: item.swift_code || '',
       upi_id: item.upi_id || '',
+      razorpay_id: item.razorpay_id || '',
+      vendor_share: item.vendor_share == null ? '' : String(item.vendor_share),
     });
+    resetValidation();
     setEditingId(item.id);
     setFormError('');
     setActiveMenuId(null);
@@ -313,7 +468,7 @@ export default function BankDetailsPage() {
   if (!trustId) return null;
 
   return (
-    <div className="nb-root">
+    <div className="nb-root nb-bank">
       <Sidebar
         trustName={trust?.name || 'Trust'}
         onDashboard={() => navigate('/dashboard', { state: { userName, trust, sidebarNavKey: 'dashboard' } })}
@@ -346,33 +501,30 @@ export default function BankDetailsPage() {
                     <label>
                       <span>Name *</span>
                       <input
-                        value={form.name}
-                        onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                        {...fieldProps('name')}
                         placeholder="Enter contact name"
                         autoComplete="off"
                       />
+                      {renderFieldError('name')}
                     </label>
                     <label>
                       <span>Mobile *</span>
                       <input
-                        value={form.mobile}
-                        onChange={(e) =>
-                          setForm((prev) => ({ ...prev, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) }))
-                        }
+                        {...fieldProps('mobile')}
                         inputMode="numeric"
-                        maxLength={10}
                         placeholder="Enter 10-digit mobile number"
                         autoComplete="off"
                       />
+                      {renderFieldError('mobile')}
                     </label>
                     <label className="nb-span-2">
                       <span>Email ID</span>
                       <input
-                        value={form.email_id}
-                        onChange={(e) => setForm((prev) => ({ ...prev, email_id: e.target.value }))}
+                        {...fieldProps('email_id')}
                         placeholder="Enter email address"
                         autoComplete="off"
                       />
+                      {renderFieldError('email_id')}
                     </label>
                   </div>
                 </section>
@@ -383,19 +535,19 @@ export default function BankDetailsPage() {
                     <label>
                       <span>Beneficiary Name</span>
                       <input
-                        value={form.beneficiary_name}
-                        onChange={(e) => setForm((prev) => ({ ...prev, beneficiary_name: e.target.value }))}
+                        {...fieldProps('beneficiary_name')}
                         placeholder="Enter beneficiary name"
                         autoComplete="off"
                       />
+                      {renderFieldError('beneficiary_name')}
                     </label>
                     <label>
                       <span>Account No.</span>
                       <div className="nb-input-with-actions">
                         <input
                           type={formFieldVisible.account_no ? 'text' : 'password'}
-                          value={form.account_no}
-                          onChange={(e) => setForm((prev) => ({ ...prev, account_no: e.target.value }))}
+                          {...fieldProps('account_no')}
+                          inputMode="numeric"
                           placeholder="Enter account number"
                           name="bank_account_no_field"
                           autoComplete="new-password"
@@ -409,32 +561,32 @@ export default function BankDetailsPage() {
                           <EyeIcon open={formFieldVisible.account_no} />
                         </button>
                       </div>
+                      {renderFieldError('account_no')}
                     </label>
                     <label>
                       <span>Bank Name</span>
                       <input
-                        value={form.bank_name}
-                        onChange={(e) => setForm((prev) => ({ ...prev, bank_name: e.target.value }))}
+                        {...fieldProps('bank_name')}
                         placeholder="Enter bank name"
                         autoComplete="off"
                       />
+                      {renderFieldError('bank_name')}
                     </label>
                     <label>
                       <span>Branch</span>
                       <input
-                        value={form.branch}
-                        onChange={(e) => setForm((prev) => ({ ...prev, branch: e.target.value }))}
+                        {...fieldProps('branch')}
                         placeholder="Enter branch"
                         autoComplete="off"
                       />
+                      {renderFieldError('branch')}
                     </label>
                     <label>
                       <span>IFSC Code</span>
                       <div className="nb-input-with-actions">
                         <input
                           type={formFieldVisible.ifsc_code ? 'text' : 'password'}
-                          value={form.ifsc_code}
-                          onChange={(e) => setForm((prev) => ({ ...prev, ifsc_code: e.target.value }))}
+                          {...fieldProps('ifsc_code')}
                           placeholder="Enter IFSC code"
                           name="bank_ifsc_code_field"
                           autoComplete="new-password"
@@ -448,14 +600,14 @@ export default function BankDetailsPage() {
                           <EyeIcon open={formFieldVisible.ifsc_code} />
                         </button>
                       </div>
+                      {renderFieldError('ifsc_code')}
                     </label>
                     <label>
                       <span>SWIFT Code</span>
                       <div className="nb-input-with-actions">
                         <input
                           type={formFieldVisible.swift_code ? 'text' : 'password'}
-                          value={form.swift_code}
-                          onChange={(e) => setForm((prev) => ({ ...prev, swift_code: e.target.value }))}
+                          {...fieldProps('swift_code')}
                           placeholder="Enter SWIFT code"
                           name="bank_swift_code_field"
                           autoComplete="new-password"
@@ -469,14 +621,14 @@ export default function BankDetailsPage() {
                           <EyeIcon open={formFieldVisible.swift_code} />
                         </button>
                       </div>
+                      {renderFieldError('swift_code')}
                     </label>
                     <label>
                       <span>UPI ID</span>
                       <div className="nb-input-with-actions">
                         <input
                           type={formFieldVisible.upi_id ? 'text' : 'password'}
-                          value={form.upi_id}
-                          onChange={(e) => setForm((prev) => ({ ...prev, upi_id: e.target.value }))}
+                          {...fieldProps('upi_id')}
                           placeholder="Enter UPI ID"
                           name="bank_upi_id_field"
                           autoComplete="new-password"
@@ -490,6 +642,41 @@ export default function BankDetailsPage() {
                           <EyeIcon open={formFieldVisible.upi_id} />
                         </button>
                       </div>
+                      {renderFieldError('upi_id')}
+                    </label>
+                    <label>
+                      <span>Razorpay ID</span>
+                      <div className="nb-input-with-actions">
+                        <input
+                          type={formFieldVisible.razorpay_id ? 'text' : 'password'}
+                          {...fieldProps('razorpay_id')}
+                          placeholder="Enter Razorpay ID"
+                          name="bank_razorpay_id_field"
+                          autoComplete="new-password"
+                        />
+                        <button
+                          type="button"
+                          className="nb-input-action-btn"
+                          onClick={() => toggleFormVisible('razorpay_id')}
+                          title={formFieldVisible.razorpay_id ? 'Hide' : 'Show'}
+                        >
+                          <EyeIcon open={formFieldVisible.razorpay_id} />
+                        </button>
+                      </div>
+                      {renderFieldError('razorpay_id')}
+                    </label>
+                    <label>
+                      <span>Vendor Share (%)</span>
+                      <div className="nb-input-suffix-wrap">
+                        <input
+                          {...fieldProps('vendor_share')}
+                          inputMode="decimal"
+                          placeholder="e.g. 12.5"
+                          autoComplete="off"
+                        />
+                        <b className="nb-input-suffix" aria-hidden="true">%</b>
+                      </div>
+                      {renderFieldError('vendor_share')}
                     </label>
                   </div>
                 </section>
@@ -531,6 +718,7 @@ export default function BankDetailsPage() {
                 </section>
               </div>
 
+              {validationSummary && <div className="nb-error" role="alert">{validationSummary}</div>}
               {formError && <div className="nb-error">{formError}</div>}
               <div className="nb-form-actions">
                 <button
@@ -581,11 +769,16 @@ export default function BankDetailsPage() {
                 />
 
                 <button
-                  className="nb-add-btn nb-list-add-btn"
+                  className="nb-add-btn nb-list-add-btn nb-bank-add-btn"
                   type="button"
                   onClick={() => navigate('/company-details/bank-details/create', { state: { userName, trust, sidebarNavKey: currentSidebarNavKey } })}
                 >
-                  Add Bank Details
+                  <span className="nb-bank-add-icon" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <span>Add Bank Details</span>
                 </button>
 
                 <div className="nb-left-list">
@@ -601,9 +794,16 @@ export default function BankDetailsPage() {
                     >
                       <div className="nb-left-avatar">{getInitials(item?.name)}</div>
                       <div className="nb-left-item-body">
-                        <div className="nb-left-item-title">{item.name || '-'}</div>
-                        <div className="nb-left-item-sub">{item.bank_name || 'No bank'} • {item.mobile}</div>
+                        <div className="nb-left-item-title" title={item.name || ''}>{item.name || '-'}</div>
+                        <div className="nb-left-item-sub">
+                          <span className="nb-left-item-bank">{item.bank_name || 'No bank'}</span>
+                          <span className="nb-left-item-dot" aria-hidden="true">•</span>
+                          <span className="nb-left-item-mobile">{item.mobile || '-'}</span>
+                        </div>
                       </div>
+                      <svg className="nb-left-item-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
                     </button>
                   ))}
                 </div>
@@ -614,77 +814,131 @@ export default function BankDetailsPage() {
 
                 {selectedRecord && (
                   <>
-                    <div className="nb-profile-hero">
+                    <div className="nb-profile-hero nb-bank-hero">
                       <div className="nb-profile-hero-left">
                         <div className="nb-profile-avatar">{getInitials(selectedRecord.name)}</div>
-                        <div>
-                          <h3>{selectedRecord.name || '-'}</h3>
-                          <div className="nb-profile-hero-actions">
-                            <button className="nb-secondary-btn" type="button" onClick={() => handleEdit(selectedRecord)}>
-                              Edit Details
-                            </button>
-                          </div>
+                        <div className="nb-bank-hero-info">
+                          <h3 title={selectedRecord.name || ''}>{selectedRecord.name || '-'}</h3>
+                          <p>{selectedRecord.bank_name || 'No bank'} • {selectedRecord.mobile || '-'}</p>
                         </div>
                       </div>
-                      <div className="nb-card-menu-wrap">
+                      <div className="nb-bank-hero-actions">
                         <button
                           type="button"
-                          className="nb-card-menu-btn"
-                          title="Actions"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setActiveMenuId((prev) => (prev === selectedRecord.id ? null : selectedRecord.id));
-                          }}
+                          className="nb-bank-btn nb-bank-btn-edit"
+                          onClick={() => handleEdit(selectedRecord)}
                         >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                          <svg className="nb-bank-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M12 20h9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                            <path d="M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
                           </svg>
+                          <span>Edit</span>
                         </button>
-                        {activeMenuId === selectedRecord.id && (
-                          <div className="nb-card-menu">
-                            <button type="button" onClick={() => handleEdit(selectedRecord)} disabled={updatingId === selectedRecord.id}>
-                              Edit Details
-                            </button>
-                            <button
-                              type="button"
-                              className="danger"
-                              onClick={() => handleDelete(selectedRecord)}
-                              disabled={updatingId === selectedRecord.id}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
 
-                    <div className="nb-profile-details">
-                      <div className="nb-profile-details-head">
-                        <h3>Details</h3>
-                      </div>
-                      <div className="nb-profile-detail-grid">
-                        <div><span>Mobile</span><strong>{selectedRecord.mobile || '-'}</strong></div>
-                        <div><span>Email</span><strong>{selectedRecord.email_id || '-'}</strong></div>
-                        <div><span>Beneficiary Name</span><strong>{selectedRecord.beneficiary_name || '-'}</strong></div>
-                        <div><span>Account No.</span><strong>{maskSensitive(selectedRecord.account_no)}</strong></div>
-                        <div><span>Bank Name</span><strong>{selectedRecord.bank_name || '-'}</strong></div>
-                        <div><span>Branch</span><strong>{selectedRecord.branch || '-'}</strong></div>
-                        <div><span>IFSC Code</span><strong>{maskSensitive(selectedRecord.ifsc_code)}</strong></div>
-                        <div><span>SWIFT Code</span><strong>{maskSensitive(selectedRecord.swift_code)}</strong></div>
-                        <div><span>UPI ID</span><strong>{maskSensitive(selectedRecord.upi_id)}</strong></div>
-                        <div><span>Created Date</span><strong>{formatDate(selectedRecord.created_at)}</strong></div>
-                      </div>
+                    {/* key: reset revealed/copied state when another record is selected */}
+                    <div className="nb-profile-details nb-bank-details" key={selectedRecord.id}>
+                      <DetailSection
+                        title="Contact"
+                        icon={(
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      >
+                        <DetailItem label="Mobile" value={selectedRecord.mobile} copyable />
+                        <DetailItem label="Email" value={selectedRecord.email_id} copyable />
+                      </DetailSection>
+
+                      <DetailSection
+                        title="Bank Account"
+                        icon={(
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      >
+                        <DetailItem label="Beneficiary Name" value={selectedRecord.beneficiary_name} copyable />
+                        <DetailItem label="Account No." value={selectedRecord.account_no} sensitive copyable />
+                        <DetailItem label="Bank Name" value={selectedRecord.bank_name} />
+                        <DetailItem label="Branch" value={selectedRecord.branch} />
+                        <DetailItem label="IFSC Code" value={selectedRecord.ifsc_code} sensitive copyable />
+                        <DetailItem label="SWIFT Code" value={selectedRecord.swift_code} sensitive copyable />
+                      </DetailSection>
+
+                      <DetailSection
+                        title="Payment"
+                        icon={(
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+                            <path d="M2.5 10h19M6.5 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          </svg>
+                        )}
+                      >
+                        <DetailItem label="UPI ID" value={selectedRecord.upi_id} sensitive copyable />
+                        <DetailItem label="Razorpay ID" value={selectedRecord.razorpay_id} sensitive copyable />
+                        <DetailItem label="Vendor Share" value={selectedRecord.vendor_share} format={formatPercent} />
+                      </DetailSection>
 
                       {selectedRecord.qr && (
-                        <div style={{ marginTop: 14 }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>QR Code</span>
-                          <div style={{ marginTop: 6 }}>
-                            <img src={selectedRecord.qr} alt="QR" style={{ width: 160, height: 160, objectFit: 'contain', border: '1px solid #e5e7eb', borderRadius: 8 }} />
-                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Size: {formatSize(selectedRecord.size)}</div>
+                        <section className="nb-detail-section">
+                          <h4 className="nb-detail-section-title">
+                            <span className="nb-detail-section-icon" aria-hidden="true">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                              </svg>
+                            </span>
+                            QR Code
+                          </h4>
+                          <div className="nb-qr-card">
+                            <a
+                              className="nb-qr-frame"
+                              href={selectedRecord.qr}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Open QR in a new tab"
+                            >
+                              <img src={selectedRecord.qr} alt={`QR code for ${selectedRecord.name || 'bank details'}`} />
+                            </a>
+                            <div className="nb-qr-info">
+                              <p className="nb-qr-hint">Scan with any UPI app to pay.</p>
+                              <span className="nb-qr-meta">File size: {formatSize(selectedRecord.size)}</span>
+                              <div className="nb-qr-actions">
+                                <button
+                                  type="button"
+                                  className="nb-qr-btn primary"
+                                  onClick={() => downloadQr(selectedRecord.qr, selectedRecord.name)}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                  Download
+                                </button>
+                                <a
+                                  className="nb-qr-btn"
+                                  href={selectedRecord.qr}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                  View
+                                </a>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        </section>
                       )}
+
+                      <div className="nb-detail-footer">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <rect x="3" y="5" width="18" height="16" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+                          <path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                        Added on {formatDate(selectedRecord.created_at)}
+                      </div>
                     </div>
                   </>
                 )}

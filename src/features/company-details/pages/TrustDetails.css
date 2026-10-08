@@ -475,8 +475,8 @@
 /* Responsive */
 @media (max-width: 980px) {
   .trust-details-header {
-    padding-left: 66px;
-    padding-right: 16px;
+    padding-left: 16px;
+    padding-right: 66px;
     gap: 14px;
   }
 }
@@ -485,7 +485,7 @@
   .trust-details-header {
     flex-direction: column;
     align-items: flex-start;
-    padding: 16px 18px 16px 66px;
+    padding: 16px 66px 16px 18px;
     gap: 12px;
   }
 
@@ -493,6 +493,10 @@
     width: 100%;
     align-items: flex-start;
     gap: 18px;
+  }
+
+  .trust-details-hero-left .back-btn {
+    display: none;
   }
 
   .trust-details-container {
@@ -536,7 +540,7 @@
   }
 
   .trust-details-header {
-    padding: 12px 10px 12px 58px;
+    padding: 12px 58px 12px 10px;
   }
 
   .page-title {
